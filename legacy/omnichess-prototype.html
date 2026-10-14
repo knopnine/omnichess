@@ -1,0 +1,2379 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>OmniChess — High-End Multi-Player Tactical Arena</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap');
+
+        :root {
+            --bg-base: #06080f;
+            --panel-bg: rgba(13, 18, 32, 0.75);
+            --panel-border: rgba(255, 255, 255, 0.08);
+            --panel-glow: 0 20px 40px -15px rgba(0, 0, 0, 0.7);
+        }
+
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: var(--bg-base);
+            background-image: 
+                radial-gradient(circle at 10% 10%, rgba(245, 158, 11, 0.06) 0%, transparent 45%),
+                radial-gradient(circle at 90% 10%, rgba(244, 63, 94, 0.06) 0%, transparent 45%),
+                radial-gradient(circle at 50% 90%, rgba(56, 189, 248, 0.06) 0%, transparent 50%);
+            color: #f8fafc;
+            overflow-x: hidden;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        .mono {
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .glass-card {
+            background: var(--panel-bg);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid var(--panel-border);
+            box-shadow: var(--panel-glow);
+        }
+
+        .glass-pill {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+        }
+
+        ::-webkit-scrollbar {
+            width: 5px;
+            height: 5px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(10, 14, 24, 0.5);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        canvas {
+            touch-action: manipulation;
+        }
+
+        @keyframes pulseGlow {
+            0%, 100% { opacity: 0.4; }
+            50% { opacity: 0.8; }
+        }
+        .animate-glow {
+            animation: pulseGlow 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between selection:bg-amber-500/30">
+
+    <!-- Top Header & Navigation Bar -->
+    <header class="w-full glass-card border-b border-white/10 px-4 lg:px-8 py-3.5 flex flex-wrap items-center justify-between gap-3 z-30 sticky top-0">
+        <!-- Brand & Variant Switcher -->
+        <div class="flex flex-wrap items-center gap-4">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-400 via-rose-500 to-sky-400 p-0.5 shadow-xl flex items-center justify-center">
+                    <div class="w-full h-full bg-[#080c14] rounded-[10px] flex items-center justify-center">
+                        <svg class="w-5 h-5 text-amber-400" viewBox="0 0 24 24" fill="currentColor">
+                            <!-- Custom Queen SVG matching user style ref -->
+                            <path d="M4 19H20V21H4V19ZM5 16L7 7L10 13L12 5L14 13L17 7L19 16H5ZM7 4C7 3.44772 7.44772 3 8 3C8.55228 3 9 3.44772 9 4C9 4.55228 8.55228 5 8 5C7.44772 5 7 4.55228 7 4ZM11 3C11 2.44772 11.4477 2 12 2C12.5523 2 13 2.44772 13 3C13 3.55228 12.5523 4 12 4C11.4477 4 11 3.55228 11 3ZM15 4C15 3.44772 15.4477 3 16 3C16.5523 3 17 3.44772 17 4C17 4.55228 16.5523 5 16 5C15.4477 5 15 4.55228 15 4Z"/>
+                        </svg>
+                    </div>
+                </div>
+                <div>
+                    <div class="flex items-center gap-2.5">
+                        <h1 class="font-extrabold text-base tracking-wider text-white">OMNICHESS</h1>
+                        <span id="badgeCellCount" class="text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-amber-500/10 text-amber-300 border border-amber-500/20">96-Cell Hex</span>
+                    </div>
+                    <p class="text-[11px] text-slate-400 hidden sm:block">Multi-Sector Radial Chess & AI Battleground</p>
+                </div>
+            </div>
+
+            <!-- Mode Selector: 2P to 6P -->
+            <div class="flex items-center glass-pill p-1 rounded-2xl shadow-inner">
+                <button onclick="game.setPlayerCount(2)" id="btnMode2" class="px-3 py-1.5 rounded-xl text-xs font-bold transition text-slate-400 hover:text-white">2P</button>
+                <button onclick="game.setPlayerCount(3)" id="btnMode3" class="px-3 py-1.5 rounded-xl text-xs font-bold transition bg-amber-500 text-slate-950 shadow-lg">3P</button>
+                <button onclick="game.setPlayerCount(4)" id="btnMode4" class="px-3 py-1.5 rounded-xl text-xs font-bold transition text-slate-400 hover:text-white">4P</button>
+                <button onclick="game.setPlayerCount(5)" id="btnMode5" class="px-3 py-1.5 rounded-xl text-xs font-bold transition text-slate-400 hover:text-white">5P</button>
+                <button onclick="game.setPlayerCount(6)" id="btnMode6" class="px-3 py-1.5 rounded-xl text-xs font-bold transition text-slate-400 hover:text-white">6P</button>
+            </div>
+
+            <!-- Spectator & Simulation Controls -->
+            <div class="flex items-center gap-2 glass-pill p-1.5 rounded-2xl">
+                <button onclick="game.toggleSpectatorMode()" id="btnSpectator" class="px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-2 text-slate-300 hover:text-white" title="All-AI Spectator Arena">
+                    <i class="fa-solid fa-eye text-sky-400"></i>
+                    <span>Spectate</span>
+                </button>
+                <div class="h-4 w-[1px] bg-white/10 mx-0.5"></div>
+                <button onclick="game.togglePause()" id="btnPause" class="px-2.5 py-1.5 rounded-xl text-xs font-semibold bg-white/5 hover:bg-white/10 text-slate-200 transition flex items-center gap-1.5" title="Pause / Resume AI">
+                    <i id="iconPause" class="fa-solid fa-pause text-[10px]"></i>
+                    <span id="lblPause" class="hidden md:inline text-xs">Pause</span>
+                </button>
+                <button onclick="game.stepAI()" id="btnStep" class="px-2.5 py-1.5 rounded-xl text-xs font-semibold bg-white/5 hover:bg-white/10 text-amber-300 transition flex items-center gap-1.5 disabled:opacity-40 disabled:pointer-events-none" title="Step 1 AI Move">
+                    <i class="fa-solid fa-forward-step text-[10px]"></i>
+                    <span class="hidden md:inline text-xs">Step</span>
+                </button>
+                <select id="selQuickSpeed" onchange="game.setSpeed(this.value)" class="bg-[#0b101d] text-slate-300 text-xs font-mono rounded-xl px-2.5 py-1.5 border border-white/10 focus:outline-none focus:border-amber-400" title="Simulation Speed">
+                    <option value="120">Turbo</option>
+                    <option value="420" selected>Normal</option>
+                    <option value="900">Cinematic</option>
+                </select>
+            </div>
+
+            <!-- King's Conquest Toggle -->
+            <button onclick="game.toggleConquestRule()" id="btnConquestRule" class="px-3 py-1.5 rounded-xl border text-xs font-bold transition flex items-center gap-2 bg-amber-500/15 text-amber-300 border-amber-500/30 shadow-lg" title="3P+ Rule: Slaying a King converts all their remaining pieces!">
+                <i class="fa-solid fa-crown text-amber-400"></i>
+                <span class="hidden sm:inline">Conquest:</span>
+                <span id="lblConquestState">ON</span>
+            </button>
+        </div>
+
+        <!-- Center Turn Banner -->
+        <div id="turnBanner" class="flex items-center gap-2.5 px-4 py-2 rounded-2xl glass-pill shadow-xl border border-white/10">
+            <span id="turnDot" class="w-3 h-3 rounded-full bg-amber-400 shadow-[0_0_12px_#fbbf24]"></span>
+            <span id="turnText" class="text-xs font-extrabold tracking-wide text-amber-300">YOUR TURN (GOLD)</span>
+            <span id="aiThinkingBadge" class="hidden text-[11px] mono text-slate-400 flex items-center gap-1.5 ml-1">
+                <i class="fa-solid fa-circle-notch fa-spin text-xs"></i>
+            </span>
+        </div>
+
+        <!-- Right Quick Actions -->
+        <div class="flex items-center gap-2">
+            <button id="btnUndo" onclick="game.undoMove()" class="px-3 py-2 rounded-xl bg-white/5 hover:bg-white/10 active:scale-95 text-slate-200 text-xs font-semibold border border-white/10 transition flex items-center gap-2 disabled:opacity-40 disabled:pointer-events-none" title="Undo Move">
+                <i class="fa-solid fa-rotate-left"></i>
+                <span class="hidden xl:inline">Undo</span>
+            </button>
+            <button id="btnHint" onclick="game.showHint()" class="px-3 py-2 rounded-xl bg-white/5 hover:bg-white/10 active:scale-95 text-amber-300 text-xs font-semibold border border-white/10 transition flex items-center gap-2" title="Suggest Best Move">
+                <i class="fa-solid fa-lightbulb"></i>
+                <span class="hidden xl:inline">Hint</span>
+            </button>
+            <button onclick="ui.toggleModal('rulesModal', true)" class="px-3 py-2 rounded-xl bg-white/5 hover:bg-white/10 active:scale-95 text-sky-300 text-xs font-semibold border border-white/10 transition flex items-center gap-2" title="Geometry & Rules Guide">
+                <i class="fa-solid fa-book-open"></i>
+                <span class="hidden xl:inline">Guide</span>
+            </button>
+            <button onclick="ui.toggleModal('settingsModal', true)" class="px-3 py-2 rounded-xl bg-white/5 hover:bg-white/10 active:scale-95 text-slate-200 text-xs font-semibold border border-white/10 transition flex items-center gap-2" title="Match Settings">
+                <i class="fa-solid fa-sliders"></i>
+                <span class="hidden xl:inline">Settings</span>
+            </button>
+            <button onclick="game.newGame()" class="px-3.5 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 active:scale-95 text-slate-950 font-extrabold text-xs shadow-lg shadow-amber-500/20 transition flex items-center gap-2">
+                <i class="fa-solid fa-rotate"></i>
+                <span>Reset</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Content Workspace -->
+    <main class="flex-1 w-full max-w-[1720px] mx-auto px-3 sm:px-6 py-4 grid grid-cols-1 lg:grid-cols-12 gap-5 items-center">
+        
+        <!-- Left Sidebar: Army Telemetry Cards -->
+        <section class="lg:col-span-3 flex flex-col gap-3 order-2 lg:order-1 max-h-[700px] overflow-y-auto pr-1">
+            <div class="flex items-center justify-between px-1 text-xs text-slate-400">
+                <span class="font-bold uppercase tracking-wider text-slate-300">Active Armies</span>
+                <span>Click <strong class="text-slate-200">HUMAN / AI</strong> badge to toggle</span>
+            </div>
+
+            <!-- Dynamic Army Cards Container -->
+            <div id="playerCardsContainer" class="flex flex-col gap-3"></div>
+            <p class="px-1 text-xs text-slate-300 leading-relaxed">Win chances are position-based estimates, not calibrated probabilities. Draws are not estimated.</p>
+
+            <!-- Hover Telemetry & Coords Toggle -->
+            <div class="glass-card rounded-2xl p-3 border border-white/10 flex items-center justify-between text-xs mt-1">
+                <div class="flex items-center gap-2.5 truncate">
+                    <i class="fa-solid fa-crosshairs text-amber-400"></i>
+                    <span id="hoverCellInfo" class="mono text-slate-300 truncate">Hover or tap any square</span>
+                </div>
+                <button onclick="game.toggleCoords()" id="btnCoords" class="px-2.5 py-1 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 text-[11px] border border-white/10 shrink-0 transition">
+                    Coords: ON
+                </button>
+            </div>
+        </section>
+
+        <!-- Center: Interactive Radial Canvas Board -->
+        <section class="lg:col-span-6 flex flex-col items-center justify-center order-1 lg:order-2 relative">
+            <div id="canvasContainer" class="w-full max-w-[720px] aspect-square flex items-center justify-center relative">
+                <canvas id="chessCanvas" class="w-full h-full cursor-pointer drop-shadow-2xl"></canvas>
+
+                <!-- Floating Toast Notification -->
+                <div id="boardToast" class="pointer-events-none opacity-0 transition-all duration-300 absolute top-5 left-1/2 -translate-x-1/2 px-5 py-2.5 rounded-2xl glass-card border border-amber-500/40 text-amber-300 text-xs font-extrabold shadow-2xl flex items-center gap-2.5 z-20 whitespace-nowrap">
+                    <i class="fa-solid fa-sparkles text-amber-400"></i>
+                    <span id="boardToastText">Check!</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- Right Sidebar: Battle Log & Telemetry -->
+        <section class="lg:col-span-3 flex flex-col gap-3 order-3 h-full max-h-[660px]">
+            <div class="glass-card rounded-2xl p-4 flex flex-col flex-1 border border-white/10 overflow-hidden shadow-2xl">
+                <div class="flex items-center justify-between pb-3 mb-3 border-b border-white/10">
+                    <div class="flex items-center gap-2.5">
+                        <i class="fa-solid fa-list-ol text-amber-400 text-xs"></i>
+                        <h3 class="font-extrabold text-xs uppercase tracking-wider text-slate-200">Battle Log</h3>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span id="spectatorBadge" class="hidden text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-sky-500/20 text-sky-300 border border-sky-500/30">SPECTATING</span>
+                        <span id="turnCounterBadge" class="text-xs mono text-slate-400">Ply: 0</span>
+                    </div>
+                </div>
+
+                <!-- Move List Container -->
+                <div id="moveLogContainer" class="flex-1 overflow-y-auto pr-1 space-y-1.5 text-xs mono max-h-[380px] lg:max-h-none"></div>
+
+                <!-- Active Mode Footer -->
+                <div class="pt-3 mt-3 border-t border-white/10 flex flex-col gap-2 text-xs text-slate-400">
+                    <div class="flex justify-between">
+                        <span>Topology:</span>
+                        <span id="lblTopologyInfo" class="text-slate-200 font-semibold">3-Player Hex (96 Cells)</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span>Victory Rule:</span>
+                        <span id="lblVictoryMode" class="text-slate-200 font-semibold">Last King Standing</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span>King's Conquest:</span>
+                        <span id="lblConquestFooter" class="text-amber-400 font-semibold">ON (Convert Squad)</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span>AI Engine:</span>
+                        <span id="lblAiDifficulty" class="text-amber-400 font-semibold">Tactical (Lvl 2)</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Promotion Modal -->
+    <div id="promotionModal" class="fixed inset-0 bg-[#04060b]/85 backdrop-blur-md hidden items-center justify-center z-50 p-4">
+        <div class="glass-card rounded-3xl max-w-sm w-full p-6 border border-amber-500/40 shadow-2xl text-center">
+            <h3 class="text-lg font-extrabold text-amber-300 mb-1">Pawn Promotion</h3>
+            <p class="text-xs text-slate-400 mb-5">Your pawn reached the far rank! Choose a piece to promote to:</p>
+            <div class="grid grid-cols-4 gap-3">
+                <button onclick="game.completePromotion('Q')" class="p-3.5 rounded-2xl bg-white/5 hover:bg-amber-500/20 border border-white/10 hover:border-amber-400/60 transition flex flex-col items-center gap-2 group">
+                    <svg class="w-8 h-8 text-amber-400 group-hover:scale-110 transition" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M4 19H20V21H4V19ZM5 16L7 7L10 13L12 5L14 13L17 7L19 16H5ZM7 4C7 3.44772 7.44772 3 8 3C8.55228 3 9 3.44772 9 4C9 4.55228 8.55228 5 8 5C7.44772 5 7 4.55228 7 4ZM11 3C11 2.44772 11.4477 2 12 2C12.5523 2 13 2.44772 13 3C13 3.55228 12.5523 4 12 4C11.4477 4 11 3.55228 11 3ZM15 4C15 3.44772 15.4477 3 16 3C16.5523 3 17 3.44772 17 4C17 4.55228 16.5523 5 16 5C15.4477 5 15 4.55228 15 4Z"/>
+                    </svg>
+                    <span class="text-[11px] font-bold text-slate-200">Queen</span>
+                </button>
+                <button onclick="game.completePromotion('R')" class="p-3.5 rounded-2xl bg-white/5 hover:bg-amber-500/20 border border-white/10 hover:border-amber-400/60 transition flex flex-col items-center gap-2 group">
+                    <svg class="w-8 h-8 text-amber-400 group-hover:scale-110 transition" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M4 19H20V21H4V19ZM5 16L6 6H9V8H11V6H13V8H15V6H18L19 16H5ZM7 4C7 3.44772 7.44772 3 8 3C8.55228 3 9 3.44772 9 4C9 4.55228 8.55228 5 8 5C7.44772 5 7 4.55228 7 4ZM11 3C11 2.44772 11.4477 2 12 2C12.5523 2 13 2.44772 13 3C13 3.55228 12.5523 4 12 4C11.4477 4 11 3.55228 11 3ZM15 4C15 3.44772 15.4477 3 16 3C16.5523 3 17 3.44772 17 4C17 4.55228 16.5523 5 16 5C15.4477 5 15 4.55228 15 4Z"/>
+                    </svg>
+                    <span class="text-[11px] font-bold text-slate-200">Rook</span>
+                </button>
+                <button onclick="game.completePromotion('B')" class="p-3.5 rounded-2xl bg-white/5 hover:bg-amber-500/20 border border-white/10 hover:border-amber-400/60 transition flex flex-col items-center gap-2 group">
+                    <svg class="w-8 h-8 text-amber-400 group-hover:scale-110 transition" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M4 19H20V21H4V19ZM10 16L12 6L14 16H10ZM11 3C11 2.44772 11.4477 2 12 2C12.5523 2 13 2.44772 13 3C13 3.55228 12.5523 4 12 4C11.4477 4 11 3.55228 11 3Z"/>
+                    </svg>
+                    <span class="text-[11px] font-bold text-slate-200">Bishop</span>
+                </button>
+                <button onclick="game.completePromotion('N')" class="p-3.5 rounded-2xl bg-white/5 hover:bg-amber-500/20 border border-white/10 hover:border-amber-400/60 transition flex flex-col items-center gap-2 group">
+                    <svg class="w-8 h-8 text-amber-400 group-hover:scale-110 transition" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M4 19H20V21H4V19ZM8 16L7 11C7 9 9 7 11 6L13 8L16 6L17 9L15 11L16 16H8Z"/>
+                    </svg>
+                    <span class="text-[11px] font-bold text-slate-200">Knight</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="settingsModal" class="fixed inset-0 bg-[#04060b]/85 backdrop-blur-md hidden items-center justify-center z-50 p-4">
+        <div class="glass-card rounded-3xl max-w-md w-full p-6 border border-white/10 shadow-2xl">
+            <div class="flex items-center justify-between pb-4 mb-4 border-b border-white/10">
+                <h3 class="text-base font-extrabold text-white flex items-center gap-2.5">
+                    <i class="fa-solid fa-sliders text-amber-400"></i>
+                    <span>Match Rules & AI Settings</span>
+                </h3>
+                <button onclick="ui.toggleModal('settingsModal', false)" class="text-slate-400 hover:text-white">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+
+            <div class="space-y-4 text-xs">
+                <div>
+                    <label class="block font-bold text-slate-300 mb-1.5">AI Tactical Depth</label>
+                    <select id="selDifficulty" onchange="game.updateSettings()" class="w-full rounded-xl bg-[#090d18] border border-white/10 px-3 py-2.5 text-slate-200 focus:outline-none focus:border-amber-400">
+                        <option value="casual">Casual — Opportunistic & Fast</option>
+                        <option value="tactical" selected>Tactical — Evaluates Checks, Threats & Center Control</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block font-bold text-slate-300 mb-1.5">Victory & Elimination Condition</label>
+                    <select id="selVictoryMode" onchange="game.updateSettings()" class="w-full rounded-xl bg-[#090d18] border border-white/10 px-3 py-2.5 text-slate-200 focus:outline-none focus:border-amber-400">
+                        <option value="last_standing" selected>Last King Standing (Eliminated armies freeze as obstacles)</option>
+                        <option value="remove_eliminated">Last King Standing (Eliminated armies are removed)</option>
+                        <option value="first_checkmate">First Checkmate Wins Immediately</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block font-bold text-amber-300 mb-1.5">3P+ King's Conquest (Killer Converts Squad)</label>
+                    <select id="selConquestRule" onchange="game.updateSettings()" class="w-full rounded-xl bg-[#090d18] border border-amber-500/40 px-3 py-2.5 text-slate-200 focus:outline-none focus:border-amber-400">
+                        <option value="on" selected>Enabled (3P–6P) — Killer converts all remaining pieces of fallen King</option>
+                        <option value="off">Disabled — Use standard Elimination Rule above</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block font-bold text-slate-300 mb-1.5">Pawn Promotion (Human)</label>
+                    <select id="selAutoQueen" onchange="game.updateSettings()" class="w-full rounded-xl bg-[#090d18] border border-white/10 px-3 py-2.5 text-slate-200 focus:outline-none focus:border-amber-400">
+                        <option value="ask" selected>Always Ask (Modal Choice)</option>
+                        <option value="auto">Auto-Promote to Queen</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="mt-6 flex justify-end">
+                <button onclick="ui.toggleModal('settingsModal', false)" class="px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold text-xs transition shadow-lg shadow-amber-500/20">
+                    Save & Resume
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Rules & Geometry Guide Modal -->
+    <div id="rulesModal" class="fixed inset-0 bg-[#04060b]/85 backdrop-blur-md hidden items-center justify-center z-50 p-4">
+        <div class="glass-card rounded-3xl max-w-lg w-full p-6 border border-white/10 shadow-2xl max-h-[85vh] flex flex-col">
+            <div class="flex items-center justify-between pb-3 mb-3 border-b border-white/10">
+                <h3 class="text-base font-extrabold text-white flex items-center gap-2.5">
+                    <i class="fa-solid fa-compass-drafting text-sky-400"></i>
+                    <span>OmniChess: 2P to 6P Geometry Guide</span>
+                </h3>
+                <button onclick="ui.toggleModal('rulesModal', false)" class="text-slate-400 hover:text-white">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+
+            <div class="overflow-y-auto space-y-3 text-xs text-slate-300 leading-relaxed pr-2">
+                <div class="p-3.5 rounded-2xl bg-white/5 border border-white/10">
+                    <h4 class="font-extrabold text-amber-300 mb-1">1. Unified Radial Sector Topology (2 to 6 Players)</h4>
+                    <p>Each player commands an <strong class="text-white">8×4 sector</strong> (32 squares) with a full 16-piece chess army:</p>
+                    <ul class="list-disc list-inside mt-1 text-slate-400 space-y-0.5">
+                        <li><strong class="text-slate-200">2-Player (64 cells):</strong> Classic 8×8 square chess board.</li>
+                        <li><strong class="text-slate-200">3-Player (96 cells):</strong> Hexagonal arena with 3 sectors meeting at a 6-cell central rosette.</li>
+                        <li><strong class="text-slate-200">4-Player (128 cells):</strong> Octagonal arena with 4 sectors meeting at an 8-cell rosette.</li>
+                        <li><strong class="text-slate-200">5-Player (160 cells):</strong> Decagonal arena with 5 sectors meeting at a 10-cell rosette.</li>
+                        <li><strong class="text-slate-200">6-Player (192 cells):</strong> Dodecagonal arena with 6 sectors meeting at a 12-cell rosette.</li>
+                    </ul>
+                </div>
+
+                <div class="p-3.5 rounded-2xl bg-white/5 border border-white/10">
+                    <h4 class="font-extrabold text-sky-300 mb-1">2. Orthogonal & Diagonal Seam Transitions</h4>
+                    <p><strong class="text-white">Rooks & Queens:</strong> Left-wing files (a–d) cross into the adjacent clockwise sector; right-wing files (e–h) cross into the counter-clockwise sector. <strong class="text-white">Bishops & Queens:</strong> Crossing the central vertex allows diagonals to branch into <em>any</em> opposing sector!</p>
+                </div>
+
+                <div class="p-3.5 rounded-2xl bg-white/5 border border-white/10">
+                    <h4 class="font-extrabold text-emerald-400 mb-1">3. Spectator Mode & Seat Controls</h4>
+                    <p>Click <strong class="text-white">Spectate</strong> to watch an all-AI battle with <strong class="text-white">Pause</strong>, <strong class="text-white">Step</strong>, and <strong class="text-white">Speed</strong> controls. You can also click any player's <strong class="text-white">HUMAN / AI</strong> badge on their left status card to take over or delegate any army mid-match!</p>
+                </div>
+
+                <div class="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30">
+                    <h4 class="font-extrabold text-amber-300 mb-1">4. 3P+ King's Conquest (Squad Conversion)</h4>
+                    <p>When <strong class="text-white">Conquest: ON</strong> is active, <strong class="text-white">checkmating or capturing an enemy King</strong> immediately converts all of that player's remaining pieces on the board into the killer's color and command!</p>
+                </div>
+                <div class="p-3.5 rounded-2xl bg-white/5 border border-white/10">
+                    <h4 class="font-extrabold text-slate-200 mb-1">5. Estimated Win Chances</h4>
+                    <p>Army cards compare material, available movement, center control, pawn progress, threatened pieces, and king safety after each move. Active armies share 100%; eliminated armies have 0%. These are heuristic estimates, not measured probabilities, and do not predict draws. Conquest is reflected through the converted army's new position and material.</p>
+                </div>
+            </div>
+
+            <div class="mt-5 pt-3 border-t border-white/10 flex justify-end">
+                <button onclick="ui.toggleModal('rulesModal', false)" class="px-5 py-2.5 rounded-xl bg-sky-500 hover:bg-sky-400 text-slate-950 font-extrabold text-xs transition shadow-lg shadow-sky-500/20">
+                    Got It, Let's Play
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Victory / Game Over Modal -->
+    <div id="gameOverModal" class="fixed inset-0 bg-[#04060b]/90 backdrop-blur-md hidden items-center justify-center z-50 p-4">
+        <div class="glass-card rounded-3xl max-w-md w-full p-8 border border-amber-500/40 shadow-2xl text-center">
+            <div class="w-16 h-16 rounded-2xl bg-amber-500/20 border border-amber-400/40 flex items-center justify-center mx-auto mb-4 text-amber-300 text-3xl shadow-xl">
+                <i class="fa-solid fa-trophy"></i>
+            </div>
+            <h2 id="gameOverTitle" class="text-2xl font-extrabold text-white mb-2">Victory!</h2>
+            <p id="gameOverSubtitle" class="text-xs text-slate-300 mb-6 leading-relaxed">All opposing kings have fallen.</p>
+            <div class="flex items-center justify-center gap-3">
+                <button onclick="ui.toggleModal('gameOverModal', false)" class="px-5 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-slate-200 text-xs font-bold border border-white/10 transition">
+                    Inspect Board
+                </button>
+                <button onclick="ui.toggleModal('gameOverModal', false); game.newGame();" class="px-6 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-extrabold text-xs shadow-xl shadow-amber-500/20 transition">
+                    Play Again
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        /**
+         * OMNICHESS: UNIFIED N-PLAYER (2P to 6P) RADIAL SECTOR CHESS ENGINE
+         * -------------------------------------------------------------------
+         * Features custom SVG vector piece rendering based on user's reference icon set.
+         */
+
+        const MASTER_PLAYERS = [
+            {
+                id: 0,
+                name: 'Gold',
+                sectorCode: 'A',
+                primary: '#fbbf24',
+                secondary: '#78350f',
+                stroke: '#fef3c7',
+                borderClass: 'border-l-amber-400',
+                lastMoveBg: 'rgba(251, 191, 36, 0.28)',
+                tileTints: ['#121826', '#1e293b', '#0b101d']
+            },
+            {
+                id: 1,
+                name: 'Crimson',
+                sectorCode: 'B',
+                primary: '#fb7185',
+                secondary: '#881337',
+                stroke: '#ffe4e6',
+                borderClass: 'border-l-rose-500',
+                lastMoveBg: 'rgba(244, 63, 94, 0.28)',
+                tileTints: ['#1c141d', '#2b1c28', '#120d15']
+            },
+            {
+                id: 2,
+                name: 'Cyan',
+                sectorCode: 'C',
+                primary: '#38bdf8',
+                secondary: '#0c4a6e',
+                stroke: '#e0f2fe',
+                borderClass: 'border-l-sky-400',
+                lastMoveBg: 'rgba(56, 189, 248, 0.28)',
+                tileTints: ['#101c28', '#1a2e40', '#0a121a']
+            },
+            {
+                id: 3,
+                name: 'Emerald',
+                sectorCode: 'D',
+                primary: '#34d399',
+                secondary: '#064e3b',
+                stroke: '#d1fae5',
+                borderClass: 'border-l-emerald-400',
+                lastMoveBg: 'rgba(52, 211, 153, 0.28)',
+                tileTints: ['#0f1f1c', '#18332d', '#081412']
+            },
+            {
+                id: 4,
+                name: 'Violet',
+                sectorCode: 'E',
+                primary: '#c084fc',
+                secondary: '#4c1d95',
+                stroke: '#f3e8ff',
+                borderClass: 'border-l-purple-400',
+                lastMoveBg: 'rgba(192, 132, 252, 0.28)',
+                tileTints: ['#181424', '#261f38', '#0f0c18']
+            },
+            {
+                id: 5,
+                name: 'Orange',
+                sectorCode: 'F',
+                primary: '#fb923c',
+                secondary: '#7c2d12',
+                stroke: '#ffedd5',
+                borderClass: 'border-l-orange-400',
+                lastMoveBg: 'rgba(251, 146, 60, 0.28)',
+                tileTints: ['#1e1411', '#30201a', '#120b0a']
+            }
+        ];
+
+        const PIECE_VALUES = { P: 1, N: 3, B: 3, R: 5, Q: 9, K: 100 };
+
+        // Custom SVG paths for chess pieces matching the user's reference icon design
+        const PIECE_PATHS = {
+            P: "M4 19H20V21H4V19ZM8 14H16C16 11.5 14 9.5 12 9.5C10 9.5 8 11.5 8 14ZM10 7.5C10 6.39543 10.8954 5.5 12 5.5C13.1046 5.5 14 6.39543 14 7.5C14 8.60457 13.1046 9.5 12 9.5C10.8954 9.5 10 8.60457 10 7.5Z",
+            N: "M4 19H20V21H4V19ZM7 16H17V14L15 10C15 8 13.5 6 11 6C10 6 8.5 6.5 7.5 7.5L9 9C9.5 8.5 10 8 11 8C12.5 8 13 9 13 10L11 12H7V16Z",
+            B: "M4 19H20V21H4V19ZM10 16H14V14H15C15 11.5 13.5 9.5 12 9.5C10.5 9.5 9 11.5 9 14H10V16ZM11.5 5.5C11.5 4.94772 11.9477 4.5 12.5 4.5C13.0523 4.5 13.5 4.94772 13.5 5.5C13.5 6.05228 13.0523 6.5 12.5 6.5C11.9477 6.5 11.5 60.05228 11.5 5.5Z",
+            R: "M4 19H20V21H4V19ZM5 16H19V14H17V8H15V10H13V8H11V10H9V8H7V14H5V16Z",
+            Q: "M4 19H20V21H4V19ZM5 16L7 6L10 12L12 4L14 12L17 6L19 16H5ZM7 3.5C7 2.94772 7.44772 2.5 8 2.5C8.55228 2.5 9 2.94772 9 3.5C9 4.05228 8.55228 4.5 8 4.5C7.44772 4.5 7 4.05228 7 3.5ZM11 2.5C11 1.94772 11.4477 1.5 12 1.5C12.5523 1.5 13 1.94772 13 2.5C13 3.05228 12.5523 3.5 12 3.5C11.4477 3.5 11 3.05228 11 2.5ZM15 3.5C15 2.94772 15.4477 2.5 16 2.5C16.5523 2.5 17 2.94772 17 3.5C17 4.05228 16.5523 4.5 16 4.5C15.4477 4.5 15 4.05228 15 3.5Z",
+            K: "M4 19H20V21H4V19ZM5 16H19V14.5C19 12 16 10 12 10C8 10 5 12 5 14.5V16ZM11 3H13V6H16V8H13V11H11V8H8V6H11V3Z"
+        };
+
+        function lerpPt(A, B, t) {
+            return { x: A.x + (B.x - A.x) * t, y: A.y + (B.y - A.y) * t };
+        }
+        function bilerp(P00, P10, P01, P11, u, v) {
+            const bottom = lerpPt(P00, P10, u);
+            const top = lerpPt(P01, P11, u);
+            return lerpPt(bottom, top, v);
+        }
+
+        class BoardTopology {
+            constructor(numPlayers = 3) {
+                this.numPlayers = numPlayers;
+                this.cells = [];
+                this.cellMap = new Map();
+                this.outerPolygon = [];
+                this.seamLines = [];
+                this.homeEdges = [];
+                this.buildCells();
+                this.computeGeometry(1);
+            }
+
+            key(s, r, f) {
+                return `${s}_${r}_${f}`;
+            }
+
+            getCell(s, r, f) {
+                return this.cellMap.get(this.key(s, r, f)) || null;
+            }
+
+            buildCells() {
+                this.cells = [];
+                this.cellMap.clear();
+                const N = this.numPlayers;
+
+                for (let s = 0; s < N; s++) {
+                    const secCode = MASTER_PLAYERS[s].sectorCode;
+                    for (let r = 0; r < 4; r++) {
+                        for (let f = 0; f < 8; f++) {
+                            const id = s * 32 + r * 8 + f;
+                            let colorIndex;
+                            if (N === 2) {
+                                const globalRow = s === 0 ? r : (7 - r);
+                                const globalCol = s === 0 ? f : (7 - f);
+                                colorIndex = (globalRow + globalCol) % 2;
+                            } else {
+                                colorIndex = (s + r + f) % 3;
+                            }
+
+                            let coord;
+                            if (N === 2) {
+                                const globalRank = s === 0 ? (r + 1) : (8 - r);
+                                const globalFile = s === 0 ? f : (7 - f);
+                                coord = `${String.fromCharCode(97 + globalFile)}${globalRank}`;
+                            } else {
+                                coord = `${secCode}${f + 1}-${r + 1}`;
+                            }
+
+                            const cell = {
+                                id, s, r, f,
+                                key: this.key(s, r, f),
+                                coord,
+                                colorIndex,
+                                poly: [],
+                                center: { x: 0, y: 0 }
+                            };
+                            this.cells.push(cell);
+                            this.cellMap.set(cell.key, cell);
+                        }
+                    }
+                }
+            }
+
+            computeGeometry(R) {
+                const N = this.numPlayers;
+                this.outerPolygon = [];
+                this.seamLines = [];
+                this.homeEdges = [];
+
+                if (N === 2) {
+                    const halfSide = R * 0.86;
+                    this.outerPolygon = [
+                        { x: -halfSide, y: halfSide },
+                        { x: halfSide,  y: halfSide },
+                        { x: halfSide,  y: -halfSide },
+                        { x: -halfSide, y: -halfSide }
+                    ];
+                    this.homeEdges = [
+                        { p: 0, p1: { x: -halfSide, y: halfSide }, p2: { x: halfSide, y: halfSide } },
+                        { p: 1, p1: { x: halfSide, y: -halfSide }, p2: { x: -halfSide, y: -halfSide } }
+                    ];
+                    this.seamLines = [
+                        { p1: { x: -halfSide, y: 0 }, p2: { x: halfSide, y: 0 } }
+                    ];
+
+                    for (const cell of this.cells) {
+                        const globalCol = cell.s === 0 ? cell.f : (7 - cell.f);
+                        const globalRowFromBottom = cell.s === 0 ? cell.r : (7 - cell.r);
+
+                        const x0 = -halfSide + (globalCol / 8) * (2 * halfSide);
+                        const x1 = -halfSide + ((globalCol + 1) / 8) * (2 * halfSide);
+                        const y0 = halfSide - (globalRowFromBottom / 8) * (2 * halfSide);
+                        const y1 = halfSide - ((globalRowFromBottom + 1) / 8) * (2 * halfSide);
+
+                        cell.poly = [
+                            { x: x0, y: y0 },
+                            { x: x1, y: y0 },
+                            { x: x1, y: y1 },
+                            { x: x0, y: y1 }
+                        ];
+                        cell.center = { x: (x0 + x1) / 2, y: (y0 + y1) / 2 };
+                    }
+                    return;
+                }
+
+                const deg2rad = Math.PI / 180;
+                const dTheta = 180 / N;
+                const C = { x: 0, y: 0 };
+
+                for (let k = 0; k < 2 * N; k++) {
+                    const ang = (90 + dTheta + k * dTheta) * deg2rad;
+                    this.outerPolygon.push({
+                        x: R * Math.cos(ang),
+                        y: R * Math.sin(ang)
+                    });
+                }
+
+                for (let s = 0; s < N; s++) {
+                    const baseAngle = 90 + s * (360 / N);
+                    const aLeftCorner  = (baseAngle + dTheta) * deg2rad;
+                    const aRightCorner = (baseAngle - dTheta) * deg2rad;
+                    const aLeftNext    = (baseAngle + 3 * dTheta) * deg2rad;
+                    const aRightPrev   = (baseAngle - 3 * dTheta) * deg2rad;
+
+                    const V_left  = { x: R * Math.cos(aLeftCorner),  y: R * Math.sin(aLeftCorner) };
+                    const V_right = { x: R * Math.cos(aRightCorner), y: R * Math.sin(aRightCorner) };
+                    const V_next  = { x: R * Math.cos(aLeftNext),    y: R * Math.sin(aLeftNext) };
+                    const V_prev  = { x: R * Math.cos(aRightPrev),   y: R * Math.sin(aRightPrev) };
+
+                    const M_home  = lerpPt(V_left, V_right, 0.5);
+                    const M_left  = lerpPt(V_left, V_next, 0.5);
+                    const M_right = lerpPt(V_right, V_prev, 0.5);
+
+                    this.homeEdges.push({ p: s, p1: V_left, p2: V_right });
+                    this.seamLines.push({ p1: C, p2: M_left });
+
+                    const leftQuad  = { P00: V_left, P10: M_home, P01: M_left, P11: C };
+                    const rightQuad = { P00: M_home, P10: V_right, P01: C,     P11: M_right };
+
+                    for (let r = 0; r < 4; r++) {
+                        for (let f = 0; f < 8; f++) {
+                            const cell = this.getCell(s, r, f);
+                            const isRight = f >= 4;
+                            const quad = isRight ? rightQuad : leftQuad;
+                            const localF = isRight ? (f - 4) : f;
+
+                            const u0 = localF / 4;
+                            const u1 = (localF + 1) / 4;
+                            const v0 = r / 4;
+                            const v1 = (r + 1) / 4;
+
+                            const p0 = bilerp(quad.P00, quad.P10, quad.P01, quad.P11, u0, v0);
+                            const p1 = bilerp(quad.P00, quad.P10, quad.P01, quad.P11, u1, v0);
+                            const p2 = bilerp(quad.P00, quad.P10, quad.P01, quad.P11, u1, v1);
+                            const p3 = bilerp(quad.P00, quad.P10, quad.P01, quad.P11, u0, v1);
+
+                            cell.poly = [p0, p1, p2, p3];
+                            cell.center = bilerp(quad.P00, quad.P10, quad.P01, quad.P11, (localF + 0.5) / 4, (r + 0.5) / 4);
+                        }
+                    }
+                }
+            }
+
+            stepOrthogonal(s, r, f, dr, df) {
+                const N = this.numPlayers;
+                if (dr !== 0 && df === 0) {
+                    const nr = r + dr;
+                    if (nr >= 0 && nr <= 3) {
+                        return { s, r: nr, f, dr, df };
+                    }
+                    if (nr < 0) return null;
+
+                    if (N === 2) {
+                        return { s: (s + 1) % 2, r: 3, f: 7 - f, dr: -1, df: 0 };
+                    }
+
+                    if (f < 4) {
+                        return { s: (s + 1) % N, r: 3, f: 7 - f, dr: -1, df: 0 };
+                    } else {
+                        return { s: (s + N - 1) % N, r: 3, f: 7 - f, dr: -1, df: 0 };
+                    }
+                }
+
+                if (df !== 0 && dr === 0) {
+                    const nf = f + df;
+                    if (nf >= 0 && nf <= 7) {
+                        return { s, r, f: nf, dr, df };
+                    }
+                    return null;
+                }
+
+                return null;
+            }
+
+            stepDiagonal(s, r, f, dr, df) {
+                const N = this.numPlayers;
+                const nr = r + dr;
+                const nf = f + df;
+
+                if (nr >= 0 && nr <= 3 && nf >= 0 && nf <= 7) {
+                    return [{ s, r: nr, f: nf, dr, df }];
+                }
+
+                if (nr < 0 || nf < 0 || nf > 7) {
+                    return [];
+                }
+
+                if (nr === 4) {
+                    if (N === 2) {
+                        return [{
+                            s: (s + 1) % 2,
+                            r: 3,
+                            f: 7 - nf,
+                            dr: -1,
+                            df: -df
+                        }];
+                    }
+
+                    const results = [];
+                    if ((f === 3 && df === 1) || (f === 4 && df === -1)) {
+                        for (let targetS = 0; targetS < N; targetS++) {
+                            if (targetS === s) continue;
+                            results.push({
+                                s: targetS,
+                                r: 3,
+                                f: f === 3 ? 3 : 4,
+                                dr: -1,
+                                df: f === 3 ? -1 : 1
+                            });
+                        }
+                        return results;
+                    }
+
+                    if (f < 4 && nf >= 0 && nf <= 3) {
+                        results.push({
+                            s: (s + 1) % N,
+                            r: 3,
+                            f: 7 - nf,
+                            dr: -1,
+                            df: -df
+                        });
+                    } else if (f >= 4 && nf >= 4 && nf <= 7) {
+                        results.push({
+                            s: (s + N - 1) % N,
+                            r: 3,
+                            f: 7 - nf,
+                            dr: -1,
+                            df: -df
+                        });
+                    }
+
+                    return results;
+                }
+
+                return [];
+            }
+
+            getKnightTargets(s, r, f) {
+                const targets = new Map();
+                const orthoDirs = [
+                    { dr: 1, df: 0 },
+                    { dr: -1, df: 0 },
+                    { dr: 0, df: 1 },
+                    { dr: 0, df: -1 }
+                ];
+
+                for (const d1 of orthoDirs) {
+                    const s1 = this.stepOrthogonal(s, r, f, d1.dr, d1.df);
+                    if (!s1) continue;
+                    const s2 = this.stepOrthogonal(s1.s, s1.r, s1.f, s1.dr, s1.df);
+                    if (s2) {
+                        const perpDirs = s2.dr !== 0
+                            ? [{ dr: 0, df: 1 }, { dr: 0, df: -1 }]
+                            : [{ dr: 1, df: 0 }, { dr: -1, df: 0 }];
+                        for (const p of perpDirs) {
+                            const s3 = this.stepOrthogonal(s2.s, s2.r, s2.f, p.dr, p.df);
+                            if (s3) {
+                                const cell = this.getCell(s3.s, s3.r, s3.f);
+                                if (cell) targets.set(cell.key, cell);
+                            }
+                        }
+                    }
+
+                    const perpDirs1 = s1.dr !== 0
+                        ? [{ dr: 0, df: 1 }, { dr: 0, df: -1 }]
+                        : [{ dr: 1, df: 0 }, { dr: -1, df: 0 }];
+                    for (const p of perpDirs1) {
+                        const p1 = this.stepOrthogonal(s1.s, s1.r, s1.f, p.dr, p.df);
+                        if (!p1) continue;
+                        const p2 = this.stepOrthogonal(p1.s, p1.r, p1.f, p1.dr, p1.df);
+                        if (p2) {
+                            const cell = this.getCell(p2.s, p2.r, p2.f);
+                            if (cell) targets.set(cell.key, cell);
+                        }
+                    }
+                }
+
+                return Array.from(targets.values());
+            }
+        }
+
+        class SoundFX {
+            constructor() {
+                this.ctx = null;
+            }
+            init() {
+                if (!this.ctx) {
+                    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                    if (AudioCtx) this.ctx = new AudioCtx();
+                }
+            }
+            play(type) {
+                try {
+                    this.init();
+                    if (!this.ctx) return;
+                    const now = this.ctx.currentTime;
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+
+                    if (type === 'move') {
+                        osc.type = 'sine';
+                        osc.frequency.setValueAtTime(340, now);
+                        osc.frequency.exponentialRampToValueAtTime(180, now + 0.05);
+                        gain.gain.setValueAtTime(0.12, now);
+                        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
+                        osc.start(now);
+                        osc.stop(now + 0.05);
+                    } else if (type === 'capture') {
+                        osc.type = 'triangle';
+                        osc.frequency.setValueAtTime(520, now);
+                        osc.frequency.exponentialRampToValueAtTime(150, now + 0.1);
+                        gain.gain.setValueAtTime(0.2, now);
+                        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+                        osc.start(now);
+                        osc.stop(now + 0.1);
+                    } else if (type === 'check') {
+                        osc.type = 'sawtooth';
+                        osc.frequency.setValueAtTime(587.33, now);
+                        osc.frequency.setValueAtTime(880, now + 0.07);
+                        gain.gain.setValueAtTime(0.15, now);
+                        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
+                        osc.start(now);
+                        osc.stop(now + 0.22);
+                    } else if (type === 'victory') {
+                        osc.type = 'triangle';
+                        osc.frequency.setValueAtTime(440, now);
+                        osc.frequency.setValueAtTime(554.37, now + 0.1);
+                        osc.frequency.setValueAtTime(659.25, now + 0.2);
+                        gain.gain.setValueAtTime(0.2, now);
+                        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.45);
+                        osc.start(now);
+                        osc.stop(now + 0.45);
+                    }
+                } catch (e) {}
+            }
+        }
+
+        class OmniChessGame {
+            constructor() {
+                this.numPlayers = 3;
+                this.spectatorMode = false;
+                this.isPaused = false;
+                this.seatsIsAI = [false, true, true, true, true, true];
+
+                this.topology = new BoardTopology(this.numPlayers);
+                this.sfx = new SoundFX();
+                this.canvas = document.getElementById('chessCanvas');
+                this.ctx = this.canvas.getContext('2d');
+
+                this.difficulty = 'tactical';
+                this.victoryMode = 'last_standing';
+                this.convertOnKingKill = true;
+                this.aiDelay = 420;
+                this.autoQueen = 'ask';
+                this.showCoords = true;
+
+                this.board = new Map();
+                this.turn = 0;
+                this.plyCount = 0;
+                this.eliminated = [];
+                this.captures = [];
+                this.lastMoves = [];
+                this.selectedCell = null;
+                this.legalMoves = [];
+                this.hintMove = null;
+                this.hoveredCell = null;
+                this.pendingPromotion = null;
+                this.gameOver = false;
+                this.winnerId = null;
+                this.history = [];
+                this.moveLogs = [];
+                this.aiTimer = null;
+
+                this.setupEvents();
+                this.resizeCanvas();
+                this.newGame();
+            }
+
+            getActivePlayer(s) {
+                const base = MASTER_PLAYERS[s];
+                const isAI = this.seatsIsAI[s];
+                return {
+                    ...base,
+                    isAI,
+                    label: `${base.name.toUpperCase()} (${isAI ? 'AI' : 'YOU'})`
+                };
+            }
+
+            setPlayerCount(n) {
+                if (n < 2 || n > 6) return;
+                this.numPlayers = n;
+                this.topology = new BoardTopology(n);
+                this.resizeCanvas();
+
+                for (let k = 2; k <= 6; k++) {
+                    const btn = document.getElementById(`btnMode${k}`);
+                    if (!btn) continue;
+                    if (k === n) {
+                        btn.className = 'px-3 py-1.5 rounded-xl text-xs font-bold transition bg-amber-500 text-slate-950 shadow-lg';
+                    } else {
+                        btn.className = 'px-3 py-1.5 rounded-xl text-xs font-bold transition text-slate-400 hover:text-white';
+                    }
+                }
+
+                const shapeNames = {
+                    2: '64-Cell Square',
+                    3: '96-Cell Hex',
+                    4: '128-Cell Octagon',
+                    5: '160-Cell Decagon',
+                    6: '192-Cell Dodecagon'
+                };
+                document.getElementById('badgeCellCount').textContent = shapeNames[n];
+                document.getElementById('lblTopologyInfo').textContent = `${n}-Player (${shapeNames[n]})`;
+
+                this.syncConquestUI();
+                this.newGame();
+            }
+
+            isConquestActive() {
+                return this.numPlayers >= 3 && this.convertOnKingKill;
+            }
+
+            toggleConquestRule() {
+                if (this.numPlayers < 3) {
+                    this.showToast('King Conquest rule only applies to 3P–6P modes!');
+                    return;
+                }
+                this.convertOnKingKill = !this.convertOnKingKill;
+                const sel = document.getElementById('selConquestRule');
+                if (sel) sel.value = this.convertOnKingKill ? 'on' : 'off';
+                this.syncConquestUI();
+                this.showToast(
+                    this.convertOnKingKill
+                        ? 'King Conquest ON: Killer converts all remaining pieces!'
+                        : 'King Conquest OFF: Standard elimination rules apply'
+                );
+            }
+
+            syncConquestUI() {
+                const btn = document.getElementById('btnConquestRule');
+                const lblState = document.getElementById('lblConquestState');
+                const lblFooter = document.getElementById('lblConquestFooter');
+                if (!btn || !lblState || !lblFooter) return;
+
+                if (this.numPlayers < 3) {
+                    btn.className = 'px-3 py-1.5 rounded-xl border text-xs font-bold transition flex items-center gap-2 bg-white/5 text-slate-500 border-white/10 opacity-50 cursor-not-allowed';
+                    lblState.textContent = '3P+ ONLY';
+                    lblFooter.textContent = 'N/A (2P Mode)';
+                    lblFooter.className = 'text-slate-500 font-semibold';
+                } else if (this.convertOnKingKill) {
+                    btn.className = 'px-3 py-1.5 rounded-xl border text-xs font-bold transition flex items-center gap-2 bg-amber-500/15 text-amber-300 border-amber-500/30 shadow-lg';
+                    lblState.textContent = 'ON';
+                    lblFooter.textContent = 'ON (Convert Squad)';
+                    lblFooter.className = 'text-amber-400 font-semibold';
+                } else {
+                    btn.className = 'px-3 py-1.5 rounded-xl border text-xs font-bold transition flex items-center gap-2 bg-white/5 text-slate-400 border-white/10 hover:text-white';
+                    lblState.textContent = 'OFF';
+                    lblFooter.textContent = 'OFF';
+                    lblFooter.className = 'text-slate-400 font-semibold';
+                }
+            }
+
+            toggleSpectatorMode() {
+                this.spectatorMode = !this.spectatorMode;
+                if (this.spectatorMode) {
+                    this.seatsIsAI = [true, true, true, true, true, true];
+                    this.isPaused = false;
+                    this.selectedCell = null;
+                    this.legalMoves = [];
+                    this.showToast('Spectator Mode Activated — All Armies AI Controlled');
+                } else {
+                    this.seatsIsAI = [false, true, true, true, true, true];
+                    this.showToast('Human Command Activated for Gold (Sector A)');
+                }
+                this.syncSpectatorUI();
+                this.updateHUD();
+                this.render();
+                this.scheduleNextTurnIfNeeded();
+            }
+
+            toggleSeatController(playerId) {
+                this.seatsIsAI[playerId] = !this.seatsIsAI[playerId];
+                this.spectatorMode = this.seatsIsAI.slice(0, this.numPlayers).every(Boolean);
+                this.selectedCell = null;
+                this.legalMoves = [];
+                this.syncSpectatorUI();
+                this.updateHUD();
+                this.render();
+                this.scheduleNextTurnIfNeeded();
+            }
+
+            syncSpectatorUI() {
+                const btnSpec = document.getElementById('btnSpectator');
+                const badgeSpec = document.getElementById('spectatorBadge');
+                if (this.spectatorMode) {
+                    btnSpec.className = 'px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-2 bg-sky-500 text-slate-950 shadow-lg';
+                    btnSpec.innerHTML = `<i class="fa-solid fa-eye"></i><span>Spectating</span>`;
+                    badgeSpec.classList.remove('hidden');
+                } else {
+                    btnSpec.className = 'px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-2 text-slate-300 hover:text-white';
+                    btnSpec.innerHTML = `<i class="fa-solid fa-eye text-sky-400"></i><span>Spectate</span>`;
+                    badgeSpec.classList.add('hidden');
+                }
+
+                const iconPause = document.getElementById('iconPause');
+                const lblPause = document.getElementById('lblPause');
+                const btnPause = document.getElementById('btnPause');
+                if (this.isPaused) {
+                    iconPause.className = 'fa-solid fa-play text-[10px] text-emerald-400';
+                    lblPause.textContent = 'Resume';
+                    btnPause.classList.add('border', 'border-emerald-500/40');
+                } else {
+                    iconPause.className = 'fa-solid fa-pause text-[10px]';
+                    lblPause.textContent = 'Pause';
+                    btnPause.classList.remove('border', 'border-emerald-500/40');
+                }
+
+                const currentSeatAI = this.seatsIsAI[this.turn];
+                document.getElementById('btnStep').disabled = this.gameOver || !currentSeatAI;
+            }
+
+            togglePause() {
+                this.isPaused = !this.isPaused;
+                if (this.isPaused && this.aiTimer) {
+                    clearTimeout(this.aiTimer);
+                    this.aiTimer = null;
+                }
+                this.syncSpectatorUI();
+                this.updateHUD();
+                if (!this.isPaused) {
+                    this.scheduleNextTurnIfNeeded();
+                }
+            }
+
+            stepAI() {
+                if (this.gameOver) return;
+                if (!this.seatsIsAI[this.turn]) return;
+                if (this.aiTimer) {
+                    clearTimeout(this.aiTimer);
+                    this.aiTimer = null;
+                }
+                this.isPaused = true;
+                this.syncSpectatorUI();
+                this.performAIMove(this.turn);
+            }
+
+            setSpeed(ms) {
+                this.aiDelay = parseInt(ms, 10);
+            }
+
+            scheduleNextTurnIfNeeded() {
+                if (this.aiTimer) {
+                    clearTimeout(this.aiTimer);
+                    this.aiTimer = null;
+                }
+                if (!this.gameOver && !this.isPaused && this.seatsIsAI[this.turn]) {
+                    this.aiTimer = setTimeout(() => this.performAIMove(this.turn), this.aiDelay);
+                }
+            }
+
+            setupEvents() {
+                window.addEventListener('resize', () => this.resizeCanvas());
+
+                const getPointerCell = (e) => {
+                    const rect = this.canvas.getBoundingClientRect();
+                    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+                    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+                    const x = clientX - rect.left - this.canvasWidth / 2;
+                    const y = clientY - rect.top - this.canvasHeight / 2;
+                    return this.findCellAtPoint(x, y);
+                };
+
+                this.canvas.addEventListener('mousemove', (e) => {
+                    const cell = getPointerCell(e);
+                    if (cell !== this.hoveredCell) {
+                        this.hoveredCell = cell;
+                        this.updateHoverTelemetry(cell);
+                        this.render();
+                    }
+                });
+
+                this.canvas.addEventListener('mouseleave', () => {
+                    this.hoveredCell = null;
+                    this.render();
+                });
+
+                this.canvas.addEventListener('click', (e) => {
+                    const cell = getPointerCell(e);
+                    if (cell) this.handleCellClick(cell);
+                });
+            }
+
+            resizeCanvas() {
+                const container = document.getElementById('canvasContainer');
+                const size = Math.min(container.clientWidth, container.clientHeight || container.clientWidth);
+                const dpr = window.devicePixelRatio || 1;
+                this.canvasWidth = size;
+                this.canvasHeight = size;
+                this.canvas.width = size * dpr;
+                this.canvas.height = size * dpr;
+                this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+                const radius = size * 0.465;
+                this.topology.computeGeometry(radius);
+                this.render();
+            }
+
+            findCellAtPoint(x, y) {
+                for (const cell of this.topology.cells) {
+                    const poly = cell.poly;
+                    let insidePos = true;
+                    let insideNeg = true;
+                    for (let i = 0; i < 4; i++) {
+                        const a = poly[i];
+                        const b = poly[(i + 1) % 4];
+                        const cross = (b.x - a.x) * (y - a.y) - (b.y - a.y) * (x - a.x);
+                        if (cross > 0) insidePos = false;
+                        if (cross < 0) insideNeg = false;
+                    }
+                    if (insidePos || insideNeg) return cell;
+                }
+                return null;
+            }
+
+            updateHoverTelemetry(cell) {
+                const el = document.getElementById('hoverCellInfo');
+                if (!cell) {
+                    el.textContent = 'Hover or tap any square';
+                    return;
+                }
+                const piece = this.board.get(cell.key);
+                const sectorOwner = MASTER_PLAYERS[cell.s].name;
+                if (piece) {
+                    const ownerName = MASTER_PLAYERS[piece.owner].name;
+                    const pieceNames = { K: 'King', Q: 'Queen', R: 'Rook', B: 'Bishop', N: 'Knight', P: 'Pawn' };
+                    el.textContent = `${cell.coord} • ${ownerName} ${pieceNames[piece.type]}`;
+                } else {
+                    el.textContent = `${cell.coord} (${sectorOwner} Sector)`;
+                }
+            }
+
+            toggleCoords() {
+                this.showCoords = !this.showCoords;
+                document.getElementById('btnCoords').textContent = `Coords: ${this.showCoords ? 'ON' : 'OFF'}`;
+                this.render();
+            }
+
+            updateSettings() {
+                this.difficulty = document.getElementById('selDifficulty').value;
+                this.victoryMode = document.getElementById('selVictoryMode').value;
+                this.autoQueen = document.getElementById('selAutoQueen').value;
+                const selConquest = document.getElementById('selConquestRule');
+                if (selConquest) {
+                    this.convertOnKingKill = (selConquest.value === 'on');
+                }
+
+                document.getElementById('lblAiDifficulty').textContent =
+                    this.difficulty === 'tactical' ? 'Tactical (Lvl 2)' : 'Casual (Lvl 1)';
+
+                const modeMap = {
+                    last_standing: 'Last King Standing (Freeze)',
+                    remove_eliminated: 'Last King Standing (Clear)',
+                    first_checkmate: 'First Checkmate Wins'
+                };
+                document.getElementById('lblVictoryMode').textContent = modeMap[this.victoryMode];
+                this.syncConquestUI();
+            }
+
+            newGame() {
+                if (this.aiTimer) clearTimeout(this.aiTimer);
+                this.board.clear();
+                this.turn = 0;
+                this.plyCount = 0;
+                this.eliminated = new Array(this.numPlayers).fill(false);
+                this.captures = Array.from({ length: this.numPlayers }, () => []);
+                this.lastMoves = new Array(this.numPlayers).fill(null);
+                this.selectedCell = null;
+                this.legalMoves = [];
+                this.hintMove = null;
+                this.pendingPromotion = null;
+                this.gameOver = false;
+                this.winnerId = null;
+                this.history = [];
+                this.moveLogs = [];
+
+                const backRank = ['R', 'N', 'B', 'Q', 'K', 'B', 'N', 'R'];
+                for (let s = 0; s < this.numPlayers; s++) {
+                    for (let f = 0; f < 8; f++) {
+                        this.board.set(this.topology.key(s, 0, f), {
+                            type: backRank[f],
+                            owner: s,
+                            moved: false,
+                            frozen: false
+                        });
+                        this.board.set(this.topology.key(s, 1, f), {
+                            type: 'P',
+                            owner: s,
+                            moved: false,
+                            frozen: false
+                        });
+                    }
+                }
+
+                this.syncSpectatorUI();
+                this.updateHUD();
+                this.renderMoveLog();
+                this.render();
+                this.scheduleNextTurnIfNeeded();
+            }
+
+            cloneState() {
+                const boardCopy = new Map();
+                for (const [k, v] of this.board.entries()) {
+                    boardCopy.set(k, { ...v });
+                }
+                return {
+                    board: boardCopy,
+                    turn: this.turn,
+                    plyCount: this.plyCount,
+                    eliminated: [...this.eliminated],
+                    captures: this.captures.map(arr => [...arr]),
+                    lastMoves: this.lastMoves.map(m => m ? { ...m } : null),
+                    moveLogs: [...this.moveLogs]
+                };
+            }
+
+            restoreState(snapshot) {
+                this.board = snapshot.board;
+                this.turn = snapshot.turn;
+                this.plyCount = snapshot.plyCount;
+                this.eliminated = snapshot.eliminated;
+                this.captures = snapshot.captures;
+                this.lastMoves = snapshot.lastMoves;
+                this.moveLogs = snapshot.moveLogs;
+                this.selectedCell = null;
+                this.legalMoves = [];
+                this.hintMove = null;
+                this.gameOver = false;
+                this.winnerId = null;
+                this.syncSpectatorUI();
+                this.updateHUD();
+                this.renderMoveLog();
+                this.render();
+            }
+
+            undoMove() {
+                if (this.aiTimer) clearTimeout(this.aiTimer);
+                if (this.history.length === 0) return;
+                const snapshot = this.history.pop();
+                this.restoreState(snapshot);
+            }
+
+            getPseudoMovesForCell(fromCell, boardMap) {
+                if (!fromCell) return [];
+                const piece = boardMap.get(fromCell.key);
+                if (!piece || piece.frozen) return [];
+
+                const moves = [];
+                const { s, r, f } = fromCell;
+                const owner = piece.owner;
+
+                const canLand = (targetKey) => {
+                    const occ = boardMap.get(targetKey);
+                    if (!occ) return { ok: true, capture: false };
+                    if (occ.owner !== owner && !occ.frozen) return { ok: true, capture: true };
+                    return { ok: false, capture: false };
+                };
+
+                // Pawn
+                if (piece.type === 'P') {
+                    const forwardDr = (s === owner) ? 1 : -1;
+                    const step1 = this.topology.stepOrthogonal(s, r, f, forwardDr, 0);
+                    if (step1) {
+                        const c1 = this.topology.getCell(step1.s, step1.r, step1.f);
+                        if (c1 && !boardMap.has(c1.key)) {
+                            const isPromo = (c1.s !== owner && c1.r === 0);
+                            moves.push({ from: fromCell, to: c1, capture: false, promotion: isPromo });
+
+                            if (s === owner && r === 1) {
+                                const step2 = this.topology.stepOrthogonal(step1.s, step1.r, step1.f, step1.dr, 0);
+                                if (step2) {
+                                    const c2 = this.topology.getCell(step2.s, step2.r, step2.f);
+                                    if (c2 && !boardMap.has(c2.key)) {
+                                        moves.push({ from: fromCell, to: c2, capture: false, promotion: false });
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    for (const df of [-1, 1]) {
+                        const diagSteps = this.topology.stepDiagonal(s, r, f, forwardDr, df);
+                        for (const dst of diagSteps) {
+                            const targetCell = this.topology.getCell(dst.s, dst.r, dst.f);
+                            if (targetCell) {
+                                const occ = boardMap.get(targetCell.key);
+                                if (occ && occ.owner !== owner && !occ.frozen) {
+                                    const isPromo = (targetCell.s !== owner && targetCell.r === 0);
+                                    moves.push({ from: fromCell, to: targetCell, capture: true, promotion: isPromo });
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Knight
+                else if (piece.type === 'N') {
+                    const targets = this.topology.getKnightTargets(s, r, f);
+                    for (const targetCell of targets) {
+                        const status = canLand(targetCell.key);
+                        if (status.ok) {
+                            moves.push({ from: fromCell, to: targetCell, capture: status.capture });
+                        }
+                    }
+                }
+
+                // Rook & Queen
+                if (piece.type === 'R' || piece.type === 'Q') {
+                    const dirs = [
+                        { dr: 1, df: 0 },
+                        { dr: -1, df: 0 },
+                        { dr: 0, df: 1 },
+                        { dr: 0, df: -1 }
+                    ];
+                    for (const d of dirs) {
+                        let cur = { s, r, f, dr: d.dr, df: d.df };
+                        for (let step = 0; step < 16; step++) {
+                            const next = this.topology.stepOrthogonal(cur.s, cur.r, cur.f, cur.dr, cur.df);
+                            if (!next) break;
+                            const targetCell = this.topology.getCell(next.s, next.r, next.f);
+                            if (!targetCell) break;
+
+                            const occ = boardMap.get(targetCell.key);
+                            if (!occ) {
+                                moves.push({ from: fromCell, to: targetCell, capture: false });
+                                cur = next;
+                            } else {
+                                if (occ.owner !== owner && !occ.frozen) {
+                                    moves.push({ from: fromCell, to: targetCell, capture: true });
+                                }
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                // Bishop & Queen
+                if (piece.type === 'B' || piece.type === 'Q') {
+                    const diagDirs = [
+                        { dr: 1, df: 1 },
+                        { dr: 1, df: -1 },
+                        { dr: -1, df: 1 },
+                        { dr: -1, df: -1 }
+                    ];
+                    for (const d of diagDirs) {
+                        const queue = [{ s, r, f, dr: d.dr, df: d.df, depth: 0 }];
+                        const visitedInRay = new Set();
+
+                        while (queue.length > 0) {
+                            const cur = queue.shift();
+                            if (cur.depth > 14) continue;
+
+                            const nextStates = this.topology.stepDiagonal(cur.s, cur.r, cur.f, cur.dr, cur.df);
+                            for (const next of nextStates) {
+                                const targetCell = this.topology.getCell(next.s, next.r, next.f);
+                                if (!targetCell) continue;
+                                if (visitedInRay.has(targetCell.key)) continue;
+                                visitedInRay.add(targetCell.key);
+
+                                const occ = boardMap.get(targetCell.key);
+                                if (!occ) {
+                                    moves.push({ from: fromCell, to: targetCell, capture: false });
+                                    queue.push({ ...next, depth: cur.depth + 1 });
+                                } else {
+                                    if (occ.owner !== owner && !occ.frozen) {
+                                        moves.push({ from: fromCell, to: targetCell, capture: true });
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // King
+                if (piece.type === 'K') {
+                    const orthoDirs = [
+                        { dr: 1, df: 0 },
+                        { dr: -1, df: 0 },
+                        { dr: 0, df: 1 },
+                        { dr: 0, df: -1 }
+                    ];
+                    for (const d of orthoDirs) {
+                        const next = this.topology.stepOrthogonal(s, r, f, d.dr, d.df);
+                        if (next) {
+                            const targetCell = this.topology.getCell(next.s, next.r, next.f);
+                            if (targetCell) {
+                                const status = canLand(targetCell.key);
+                                if (status.ok) moves.push({ from: fromCell, to: targetCell, capture: status.capture });
+                            }
+                        }
+                    }
+
+                    const diagDirs = [
+                        { dr: 1, df: 1 },
+                        { dr: 1, df: -1 },
+                        { dr: -1, df: 1 },
+                        { dr: -1, df: -1 }
+                    ];
+                    for (const d of diagDirs) {
+                        const nextStates = this.topology.stepDiagonal(s, r, f, d.dr, d.df);
+                        for (const next of nextStates) {
+                            const targetCell = this.topology.getCell(next.s, next.r, next.f);
+                            if (targetCell) {
+                                const status = canLand(targetCell.key);
+                                if (status.ok) moves.push({ from: fromCell, to: targetCell, capture: status.capture });
+                            }
+                        }
+                    }
+
+                    if (!piece.moved && s === owner && r === 0 && f === 4) {
+                        const krKey = this.topology.key(s, 0, 7);
+                        const kr = boardMap.get(krKey);
+                        if (kr && kr.type === 'R' && kr.owner === owner && !kr.moved) {
+                            if (!boardMap.has(this.topology.key(s, 0, 5)) && !boardMap.has(this.topology.key(s, 0, 6))) {
+                                moves.push({
+                                    from: fromCell,
+                                    to: this.topology.getCell(s, 0, 6),
+                                    capture: false,
+                                    castle: 'K'
+                                });
+                            }
+                        }
+                        const qrKey = this.topology.key(s, 0, 0);
+                        const qr = boardMap.get(qrKey);
+                        if (qr && qr.type === 'R' && qr.owner === owner && !qr.moved) {
+                            if (
+                                !boardMap.has(this.topology.key(s, 0, 1)) &&
+                                !boardMap.has(this.topology.key(s, 0, 2)) &&
+                                !boardMap.has(this.topology.key(s, 0, 3))
+                            ) {
+                                moves.push({
+                                    from: fromCell,
+                                    to: this.topology.getCell(s, 0, 2),
+                                    capture: false,
+                                    castle: 'Q'
+                                });
+                            }
+                        }
+                    }
+                }
+
+                return moves;
+            }
+
+            isKingInCheck(playerId, boardMap = this.board) {
+                let kingCellKey = null;
+                for (const [k, piece] of boardMap.entries()) {
+                    if (piece.owner === playerId && piece.type === 'K' && !piece.frozen) {
+                        kingCellKey = k;
+                        break;
+                    }
+                }
+                if (!kingCellKey) return false;
+
+                for (const [k, piece] of boardMap.entries()) {
+                    if (piece.owner !== playerId && !piece.frozen) {
+                        const cell = this.topology.cellMap.get(k);
+                        if (!cell) continue;
+                        const pseudo = this.getPseudoMovesForCell(cell, boardMap);
+                        for (const m of pseudo) {
+                            if (m.to.key === kingCellKey) return true;
+                        }
+                    }
+                }
+                return false;
+            }
+
+            simulateMove(move, boardMap = this.board) {
+                const nextBoard = new Map();
+                for (const [k, v] of boardMap.entries()) nextBoard.set(k, { ...v });
+
+                const movingPiece = { ...nextBoard.get(move.from.key), moved: true };
+                nextBoard.delete(move.from.key);
+
+                if (move.promotion) {
+                    movingPiece.type = move.promoteTo || 'Q';
+                }
+                nextBoard.set(move.to.key, movingPiece);
+
+                if (move.castle) {
+                    const s = move.from.s;
+                    if (move.castle === 'K') {
+                        const rKey = this.topology.key(s, 0, 7);
+                        const rook = { ...nextBoard.get(rKey), moved: true };
+                        nextBoard.delete(rKey);
+                        nextBoard.set(this.topology.key(s, 0, 5), rook);
+                    } else if (move.castle === 'Q') {
+                        const rKey = this.topology.key(s, 0, 0);
+                        const rook = { ...nextBoard.get(rKey), moved: true };
+                        nextBoard.delete(rKey);
+                        nextBoard.set(this.topology.key(s, 0, 3), rook);
+                    }
+                }
+
+                return nextBoard;
+            }
+
+            getLegalMovesForCell(fromCell, boardMap = this.board) {
+                if (!fromCell) return [];
+                const piece = boardMap.get(fromCell.key);
+                if (!piece || piece.frozen) return [];
+
+                const pseudo = this.getPseudoMovesForCell(fromCell, boardMap);
+                const legal = [];
+
+                for (const m of pseudo) {
+                    if (m.castle) {
+                        if (this.isKingInCheck(piece.owner, boardMap)) continue;
+                        const passFile = m.castle === 'K' ? 5 : 3;
+                        const passCell = this.topology.getCell(fromCell.s, 0, passFile);
+                        const passBoard = this.simulateMove({ from: fromCell, to: passCell }, boardMap);
+                        if (this.isKingInCheck(piece.owner, passBoard)) continue;
+                    }
+
+                    const afterBoard = this.simulateMove(m, boardMap);
+                    if (!this.isKingInCheck(piece.owner, afterBoard)) {
+                        legal.push(m);
+                    }
+                }
+
+                return legal;
+            }
+
+            getAllLegalMovesForPlayer(playerId, boardMap = this.board) {
+                const allMoves = [];
+                for (const [k, piece] of boardMap.entries()) {
+                    if (piece.owner === playerId && !piece.frozen) {
+                        const cell = this.topology.cellMap.get(k);
+                        if (!cell) continue;
+                        const cellMoves = this.getLegalMovesForCell(cell, boardMap);
+                        allMoves.push(...cellMoves);
+                    }
+                }
+                return allMoves;
+            }
+
+            handleCellClick(cell) {
+                if (this.gameOver || this.seatsIsAI[this.turn]) return;
+
+                if (this.selectedCell) {
+                    const move = this.legalMoves.find(m => m.to.key === cell.key);
+                    if (move) {
+                        if (move.promotion && this.autoQueen === 'ask') {
+                            this.pendingPromotion = move;
+                            ui.toggleModal('promotionModal', true);
+                            return;
+                        }
+                        if (move.promotion) move.promoteTo = 'Q';
+                        this.saveSnapshot();
+                        this.executeMove(move);
+                        return;
+                    }
+                }
+
+                const piece = this.board.get(cell.key);
+                if (piece && piece.owner === this.turn && !piece.frozen) {
+                    this.selectedCell = cell;
+                    this.legalMoves = this.getLegalMovesForCell(cell);
+                    this.hintMove = null;
+                    this.render();
+                } else {
+                    this.selectedCell = null;
+                    this.legalMoves = [];
+                    this.render();
+                }
+            }
+
+            completePromotion(pieceType) {
+                ui.toggleModal('promotionModal', false);
+                if (!this.pendingPromotion) return;
+                const move = this.pendingPromotion;
+                move.promoteTo = pieceType;
+                this.pendingPromotion = null;
+                this.saveSnapshot();
+                this.executeMove(move);
+            }
+
+            saveSnapshot() {
+                this.history.push(this.cloneState());
+                if (this.history.length > 35) this.history.shift();
+            }
+
+            executeMove(move) {
+                const piece = this.board.get(move.from.key);
+                const targetPiece = this.board.get(move.to.key);
+
+                if (targetPiece) {
+                    this.captures[piece.owner].push(targetPiece.type);
+                }
+
+                this.board = this.simulateMove(move, this.board);
+                this.lastMoves[piece.owner] = { from: move.from, to: move.to };
+                this.selectedCell = null;
+                this.legalMoves = [];
+                this.hintMove = null;
+                this.plyCount++;
+
+                const capSym = targetPiece ? '×' : '→';
+                const promoTxt = move.promotion ? `=${move.promoteTo || 'Q'}` : '';
+                const castleTxt = move.castle === 'K' ? 'O-O' : move.castle === 'Q' ? 'O-O-O' : null;
+                const notation = castleTxt || `${piece.type}${move.from.coord}${capSym}${move.to.coord}${promoTxt}`;
+
+                this.moveLogs.unshift({
+                    ply: this.plyCount,
+                    player: piece.owner,
+                    text: notation
+                });
+
+                if (targetPiece && targetPiece.type === 'K' && !this.eliminated[targetPiece.owner]) {
+                    this.sfx.play('victory');
+                    this.handlePlayerElimination(targetPiece.owner, true, piece.owner, true);
+                } else if (targetPiece) {
+                    this.sfx.play('capture');
+                } else {
+                    this.sfx.play('move');
+                }
+
+                this.advanceTurn();
+            }
+
+            advanceTurn() {
+                const N = this.numPlayers;
+                const activeMover = this.turn;
+
+                for (let i = 1; i <= N; i++) {
+                    const nextP = (this.turn + i) % N;
+                    if (this.eliminated[nextP]) continue;
+
+                    let hasKing = false;
+                    for (const [, p] of this.board.entries()) {
+                        if (p.owner === nextP && p.type === 'K' && !p.frozen) {
+                            hasKing = true;
+                            break;
+                        }
+                    }
+                    if (!hasKing) {
+                        this.handlePlayerElimination(nextP, true, activeMover, true);
+                        continue;
+                    }
+
+                    const moves = this.getAllLegalMovesForPlayer(nextP, this.board);
+                    const inCheck = this.isKingInCheck(nextP, this.board);
+
+                    if (moves.length === 0) {
+                        const killerId = inCheck ? this.findKingAttacker(nextP, activeMover) : null;
+                        this.handlePlayerElimination(nextP, inCheck, killerId, false);
+                        if (this.gameOver) {
+                            this.syncSpectatorUI();
+                            this.updateHUD();
+                            this.renderMoveLog();
+                            this.render();
+                            return;
+                        }
+                    } else {
+                        this.turn = nextP;
+                        if (inCheck) {
+                            this.sfx.play('check');
+                            this.showToast(`${MASTER_PLAYERS[nextP].name} King is in Check!`);
+                        }
+                        break;
+                    }
+                }
+
+                const alivePlayers = [];
+                for (let p = 0; p < N; p++) {
+                    if (!this.eliminated[p]) alivePlayers.push(p);
+                }
+                if (alivePlayers.length <= 1) {
+                    this.triggerGameOver(alivePlayers[0] ?? this.turn);
+                    return;
+                }
+
+                this.syncSpectatorUI();
+                this.updateHUD();
+                this.renderMoveLog();
+                this.render();
+                this.scheduleNextTurnIfNeeded();
+            }
+
+            findKingAttacker(victimId, preferredKillerId) {
+                let kingCellKey = null;
+                for (const [k, piece] of this.board.entries()) {
+                    if (piece.owner === victimId && piece.type === 'K' && !piece.frozen) {
+                        kingCellKey = k;
+                        break;
+                    }
+                }
+                if (!kingCellKey) return preferredKillerId;
+
+                for (const [k, piece] of this.board.entries()) {
+                    if (piece.owner === preferredKillerId && !piece.frozen) {
+                        const cell = this.topology.cellMap.get(k);
+                        if (!cell) continue;
+                        if (this.getPseudoMovesForCell(cell, this.board).some(m => m.to.key === kingCellKey)) {
+                            return preferredKillerId;
+                        }
+                    }
+                }
+
+                for (const [k, piece] of this.board.entries()) {
+                    if (piece.owner !== victimId && !piece.frozen) {
+                        const cell = this.topology.cellMap.get(k);
+                        if (!cell) continue;
+                        if (this.getPseudoMovesForCell(cell, this.board).some(m => m.to.key === kingCellKey)) {
+                            return piece.owner;
+                        }
+                    }
+                }
+
+                return preferredKillerId;
+            }
+
+            handlePlayerElimination(playerId, wasCheckmated, killerId = null, wasDirectKingKill = false) {
+                if (this.eliminated[playerId]) return;
+                this.eliminated[playerId] = true;
+                const reason = wasDirectKingKill ? 'King Slain' : (wasCheckmated ? 'Checkmated' : 'Stalemated');
+                const pName = MASTER_PLAYERS[playerId].name;
+
+                if (this.victoryMode === 'first_checkmate' && wasCheckmated) {
+                    const winner = killerId !== null ? killerId : this.turn;
+                    this.moveLogs.unshift({
+                        ply: this.plyCount,
+                        player: winner,
+                        text: `👑 ${pName} ${reason}!`
+                    });
+                    this.triggerGameOver(winner, `${MASTER_PLAYERS[winner].name} achieved First Checkmate against ${pName}!`);
+                    return;
+                }
+
+                if (this.isConquestActive() && wasCheckmated && killerId !== null && killerId !== playerId) {
+                    const killerName = MASTER_PLAYERS[killerId].name;
+                    let convertedCount = 0;
+
+                    for (const [k, p] of Array.from(this.board.entries())) {
+                        if (p.owner === playerId) {
+                            if (p.type === 'K') {
+                                this.board.delete(k);
+                            } else {
+                                p.owner = killerId;
+                                p.frozen = false;
+                                convertedCount++;
+                            }
+                        }
+                    }
+
+                    this.moveLogs.unshift({
+                        ply: this.plyCount,
+                        player: killerId,
+                        text: `⚔ ${killerName} conquered ${pName} (+${convertedCount} pcs)!`
+                    });
+                    this.showToast(`${killerName} slew ${pName}'s King & converted ${convertedCount} pieces!`);
+                    return;
+                }
+
+                this.moveLogs.unshift({
+                    ply: this.plyCount,
+                    player: playerId,
+                    text: `☠ ${pName} ${reason}!`
+                });
+                this.showToast(`${pName} ${reason}!`);
+
+                if (this.victoryMode === 'remove_eliminated') {
+                    for (const [k, p] of Array.from(this.board.entries())) {
+                        if (p.owner === playerId) this.board.delete(k);
+                    }
+                } else {
+                    for (const [k, p] of this.board.entries()) {
+                        if (p.owner === playerId) p.frozen = true;
+                    }
+                }
+            }
+
+            triggerGameOver(winnerId, customMessage = null) {
+                this.gameOver = true;
+                this.winnerId = winnerId;
+                if (this.aiTimer) clearTimeout(this.aiTimer);
+                this.sfx.play('victory');
+                const titleEl = document.getElementById('gameOverTitle');
+                const subEl = document.getElementById('gameOverSubtitle');
+                const winner = this.getActivePlayer(winnerId);
+
+                titleEl.textContent = `${winner.name} Army Triumphs!`;
+                titleEl.style.color = winner.primary;
+                subEl.textContent = customMessage || `${winner.label} is the Last King Standing in the ${this.numPlayers}-Player arena.`;
+                ui.toggleModal('gameOverModal', true);
+                this.syncSpectatorUI();
+                this.updateHUD();
+                this.render();
+            }
+
+            chooseBestMove(playerId) {
+                const legalMoves = this.getAllLegalMovesForPlayer(playerId, this.board);
+                if (legalMoves.length === 0) return null;
+
+                let bestScore = -Infinity;
+                let bestMoves = [];
+
+                for (const m of legalMoves) {
+                    let score = 0;
+                    const mover = this.board.get(m.from.key);
+                    const target = this.board.get(m.to.key);
+
+                    if (target) {
+                        score += PIECE_VALUES[target.type] * 12 - PIECE_VALUES[mover.type] * 0.8;
+                        const targetMat = this.getMaterialScore(target.owner);
+                        if (targetMat >= 32) score += 2.5;
+                        if (target.type === 'K') score += 1000;
+                    }
+
+                    if (m.promotion) score += 80;
+                    if (m.to.r === 3) score += 1.8;
+                    else if (m.to.r === 2) score += 1.0;
+
+                    if (mover.type === 'P') {
+                        const progress = (m.to.s === playerId) ? m.to.r : (7 - m.to.r);
+                        score += progress * 0.65;
+                    }
+
+                    if (m.castle) score += 4.5;
+
+                    if (this.difficulty === 'tactical') {
+                        const nextBoard = this.simulateMove(m, this.board);
+                        for (let opp = 0; opp < this.numPlayers; opp++) {
+                            if (opp !== playerId && !this.eliminated[opp]) {
+                                if (this.isKingInCheck(opp, nextBoard)) {
+                                    score += this.isConquestActive() ? 10.0 : 6.0;
+                                    const oppResponses = this.getAllLegalMovesForPlayer(opp, nextBoard);
+                                    if (oppResponses.length === 0) {
+                                        score += this.isConquestActive() ? 800 : 500;
+                                    }
+                                }
+                            }
+                        }
+
+                        let isAttacked = false;
+                        for (const [k, p] of nextBoard.entries()) {
+                            if (p.owner !== playerId && !p.frozen) {
+                                const c = this.topology.cellMap.get(k);
+                                if (!c) continue;
+                                const oppMoves = this.getPseudoMovesForCell(c, nextBoard);
+                                if (oppMoves.some(om => om.to.key === m.to.key)) {
+                                    isAttacked = true;
+                                    break;
+                                }
+                            }
+                        }
+                        if (isAttacked) {
+                            score -= PIECE_VALUES[mover.type] * 7.5;
+                        }
+                    }
+
+                    score += (Math.random() - 0.5) * 1.25;
+
+                    if (score > bestScore) {
+                        bestScore = score;
+                        bestMoves = [m];
+                    } else if (Math.abs(score - bestScore) < 0.05) {
+                        bestMoves.push(m);
+                    }
+                }
+
+                return bestMoves[Math.floor(Math.random() * bestMoves.length)];
+            }
+
+            performAIMove(playerId) {
+                if (this.gameOver || this.turn !== playerId) return;
+                const chosen = this.chooseBestMove(playerId);
+                if (chosen) {
+                    if (chosen.promotion) chosen.promoteTo = 'Q';
+                    this.saveSnapshot();
+                    this.executeMove(chosen);
+                }
+            }
+
+            showHint() {
+                if (this.gameOver || this.seatsIsAI[this.turn]) return;
+                const best = this.chooseBestMove(this.turn);
+                if (best) {
+                    this.hintMove = best;
+                    this.selectedCell = best.from;
+                    this.legalMoves = this.getLegalMovesForCell(best.from);
+                    this.showToast(`Hint: ${best.from.coord} → ${best.to.coord}`);
+                    this.render();
+                }
+            }
+
+            showToast(msg) {
+                const toast = document.getElementById('boardToast');
+                const txt = document.getElementById('boardToastText');
+                txt.textContent = msg;
+                toast.classList.remove('opacity-0');
+                toast.classList.add('opacity-100');
+                clearTimeout(this.toastTimeout);
+                this.toastTimeout = setTimeout(() => {
+                    toast.classList.remove('opacity-100');
+                    toast.classList.add('opacity-0');
+                }, 2600);
+            }
+
+            getMaterialScore(playerId) {
+                let total = 0;
+                for (const [, p] of this.board.entries()) {
+                    if (p.owner === playerId && !p.frozen && p.type !== 'K') {
+                        total += PIECE_VALUES[p.type];
+                    }
+                }
+                return total;
+            }
+
+            estimateWinChances() {
+                const chances = new Array(this.numPlayers).fill(0);
+                if (this.gameOver && this.winnerId !== null) {
+                    chances[this.winnerId] = 100;
+                    return chances;
+                }
+
+                const active = [];
+                const attacks = Array.from({ length: this.numPlayers }, () => new Set());
+                const scores = new Array(this.numPlayers).fill(0);
+                for (let p = 0; p < this.numPlayers; p++) {
+                    if (!this.eliminated[p]) active.push(p);
+                }
+                if (active.length === 0) return chances;
+                if (active.length === 1) {
+                    chances[active[0]] = 100;
+                    return chances;
+                }
+
+                for (const [key, piece] of this.board) {
+                    if (piece.frozen || this.eliminated[piece.owner]) continue;
+                    const cell = this.topology.cellMap.get(key);
+                    if (!cell) continue;
+                    const owner = piece.owner;
+                    const moves = this.getPseudoMovesForCell(cell, this.board);
+                    scores[owner] += piece.type === 'K' ? 0 : PIECE_VALUES[piece.type];
+                    scores[owner] += new Set(moves.map(m => m.to.key)).size * 0.035;
+                    if (piece.type !== 'K') scores[owner] += cell.r * 0.1;
+                    if (piece.type === 'P') {
+                        const progress = cell.s === owner ? cell.r : 7 - cell.r;
+                        scores[owner] += Math.max(0, progress - 1) * 0.12;
+                        // Empty pawn diagonals are attacked; forward moves are not.
+                        const dr = cell.s === owner ? 1 : -1;
+                        for (const df of [-1, 1]) {
+                            for (const target of this.topology.stepDiagonal(cell.s, cell.r, cell.f, dr, df)) {
+                                attacks[owner].add(this.topology.key(target.s, target.r, target.f));
+                            }
+                        }
+                    } else {
+                        for (const move of moves) {
+                            if (!move.castle) attacks[owner].add(move.to.key);
+                        }
+                    }
+                }
+
+                for (const [key, piece] of this.board) {
+                    if (piece.frozen || this.eliminated[piece.owner]) continue;
+                    if (active.some(p => p !== piece.owner && attacks[p].has(key))) {
+                        scores[piece.owner] -= piece.type === 'K' ? 3 : PIECE_VALUES[piece.type] * 0.2;
+                    }
+                }
+
+                // Softmax produces relative shares. A small equal-share component
+                // reserves uncertainty until the game declares a winner.
+                const maxScore = Math.max(...active.map(p => scores[p]));
+                const weights = active.map(p => Math.exp((scores[p] - maxScore) / 12));
+                const totalWeight = weights.reduce((sum, weight) => sum + weight, 0);
+                const shares = active.map((p, i) => {
+                    const tenths = (0.99 * weights[i] / totalWeight + 0.01 / active.length) * 1000;
+                    return { player: p, tenths: Math.floor(tenths), remainder: tenths - Math.floor(tenths) };
+                });
+                // Largest remainders keep the displayed one-decimal values at 100%.
+                const missing = 1000 - shares.reduce((sum, share) => sum + share.tenths, 0);
+                shares.sort((a, b) => b.remainder - a.remainder || a.player - b.player);
+                for (let i = 0; i < missing; i++) shares[i].tenths++;
+                for (const share of shares) chances[share.player] = share.tenths / 10;
+                return chances;
+            }
+
+            updateHUD() {
+                const winChances = this.estimateWinChances();
+                const activeP = this.getActivePlayer(this.turn);
+                const dot = document.getElementById('turnDot');
+                const txt = document.getElementById('turnText');
+                const badge = document.getElementById('aiThinkingBadge');
+
+                dot.style.backgroundColor = activeP.primary;
+                dot.style.boxShadow = `0 0 12px ${activeP.primary}`;
+                txt.style.color = activeP.primary;
+
+                if (this.gameOver) {
+                    txt.textContent = 'MATCH COMPLETE';
+                } else if (this.isPaused && activeP.isAI) {
+                    txt.textContent = `${activeP.name.toUpperCase()} TURN (PAUSED)`;
+                } else if (!activeP.isAI) {
+                    txt.textContent = `YOUR TURN (${activeP.name.toUpperCase()})`;
+                } else {
+                    txt.textContent = `${activeP.label} TURN`;
+                }
+
+                if (activeP.isAI && !this.gameOver && !this.isPaused) {
+                    badge.classList.remove('hidden');
+                } else {
+                    badge.classList.add('hidden');
+                }
+
+                document.getElementById('btnUndo').disabled = (this.history.length === 0);
+                document.getElementById('turnCounterBadge').textContent = `Ply: ${this.plyCount}`;
+
+                const container = document.getElementById('playerCardsContainer');
+                const cardsHTML = [];
+                const rankedPlayers = Array.from({ length: this.numPlayers }, (_, p) => p)
+                    .sort((a, b) => winChances[b] - winChances[a] || a - b);
+
+                for (const p of rankedPlayers) {
+                    const pInfo = this.getActivePlayer(p);
+                    const mat = this.getMaterialScore(p);
+                    const inCheck = !this.eliminated[p] && this.isKingInCheck(p, this.board);
+                    const isTurn = (this.turn === p && !this.gameOver);
+
+                    let statusBadge = '';
+                    if (this.eliminated[p]) {
+                        statusBadge = `<span class="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-slate-900 text-slate-500 border border-white/10">ELIMINATED</span>`;
+                    } else if (inCheck) {
+                        statusBadge = `<span class="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-red-500/25 text-red-300 border border-red-500/50 animate-pulse">IN CHECK!</span>`;
+                    } else if (isTurn) {
+                        statusBadge = `<span class="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40">ACTIVE</span>`;
+                    } else {
+                        statusBadge = `<span class="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-white/5 text-slate-400 border border-white/10">STANDBY</span>`;
+                    }
+
+                    const controllerBadge = pInfo.isAI
+                        ? `<button onclick="game.toggleSeatController(${p})" class="px-2 py-0.5 rounded-lg bg-white/5 hover:bg-white/10 text-[10px] font-mono text-sky-300 border border-white/10 transition" title="Switch to Human">AI</button>`
+                        : `<button onclick="game.toggleSeatController(${p})" class="px-2 py-0.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-[10px] font-mono text-amber-300 border border-amber-500/40 transition" title="Switch to AI">HUMAN</button>`;
+
+                    const capContent = this.captures[p].length === 0
+                        ? `<span class="text-[10px] text-slate-500 italic">No captures</span>`
+                        : this.captures[p].map(t => `<svg class="w-3.5 h-3.5 inline-block" style="color:${pInfo.primary}" viewBox="0 0 24 24" fill="currentColor"><path d="${PIECE_PATHS[t]}"/></svg>`).join('');
+
+                    cardsHTML.push(`
+                        <div class="glass-card rounded-2xl p-3.5 border-l-4 ${pInfo.borderClass} transition-all duration-300 ${isTurn ? 'ring-1 ring-white/25 shadow-xl' : ''}">
+                            <div class="flex items-center justify-between mb-1.5">
+                                <div class="flex items-center gap-2.5">
+                                    <span class="w-3 h-3 rounded-full shadow-md" style="background:${pInfo.primary}; box-shadow:0 0 8px ${pInfo.primary}"></span>
+                                    <h3 class="font-extrabold text-xs tracking-wider" style="color:${pInfo.primary}">${pInfo.name.toUpperCase()}</h3>
+                                    ${controllerBadge}
+                                </div>
+                                ${statusBadge}
+                            </div>
+                            <div class="flex items-center justify-between text-xs text-slate-400 mb-2">
+                                <span>Sector ${pInfo.sectorCode}</span>
+                                <span class="mono font-bold text-slate-200">Mat: ${mat}</span>
+                            </div>
+                            <div class="mb-3">
+                                <div class="flex items-center justify-between gap-2 text-xs text-slate-200 mb-1.5">
+                                    <span>Est. win chance</span>
+                                    <span class="mono font-bold">${winChances[p].toFixed(1)}%</span>
+                                </div>
+                                <div role="meter" aria-label="${pInfo.name} estimated win chance" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${winChances[p]}" aria-valuetext="${winChances[p].toFixed(1)} percent, position-based estimate" class="h-1.5 rounded overflow-hidden bg-[#070b14]">
+                                    <div class="h-full" style="width:${winChances[p]}%;background:${pInfo.primary}"></div>
+                                </div>
+                            </div>
+                            <div class="min-h-[24px] flex flex-wrap gap-1.5 items-center bg-[#070b14]/80 rounded-xl px-2.5 py-1 border border-white/5">
+                                ${capContent}
+                            </div>
+                        </div>
+                    `);
+                }
+
+                container.innerHTML = cardsHTML.join('');
+            }
+
+            renderMoveLog() {
+                const container = document.getElementById('moveLogContainer');
+                if (this.moveLogs.length === 0) {
+                    container.innerHTML = `
+                        <div class="text-slate-500 italic text-center py-10 text-xs">
+                            Select a piece on your sector or click Spectate to watch AI armies clash.
+                        </div>`;
+                    return;
+                }
+
+                container.innerHTML = this.moveLogs.slice(0, 80).map(item => {
+                    const p = MASTER_PLAYERS[item.player];
+                    return `
+                        <div class="flex items-center justify-between px-3 py-2 rounded-xl bg-white/[0.03] border border-white/5">
+                            <div class="flex items-center gap-2.5">
+                                <span class="text-[10px] text-slate-500">#${item.ply}</span>
+                                <span class="w-2.5 h-2.5 rounded-full" style="background:${p.primary}"></span>
+                                <span class="font-bold text-xs" style="color:${p.primary}">${p.name}</span>
+                            </div>
+                            <span class="text-slate-200 font-medium text-xs">${item.text}</span>
+                        </div>
+                    `;
+                }).join('');
+            }
+
+            render() {
+                const ctx = this.ctx;
+                const W = this.canvasWidth;
+                const H = this.canvasHeight;
+                if (!W || !H) return;
+                ctx.clearRect(0, 0, W, H);
+
+                ctx.save();
+                ctx.translate(W / 2, H / 2);
+
+                this.drawOuterFrame(ctx);
+
+                const checkedKingKeys = new Set();
+                for (let p = 0; p < this.numPlayers; p++) {
+                    if (!this.eliminated[p] && this.isKingInCheck(p, this.board)) {
+                        for (const [k, piece] of this.board.entries()) {
+                            if (piece.owner === p && piece.type === 'K') checkedKingKeys.add(k);
+                        }
+                    }
+                }
+
+                const legalMap = new Map();
+                for (const m of this.legalMoves) legalMap.set(m.to.key, m);
+
+                for (const cell of this.topology.cells) {
+                    const poly = cell.poly;
+                    ctx.beginPath();
+                    ctx.moveTo(poly[0].x, poly[0].y);
+                    ctx.lineTo(poly[1].x, poly[1].y);
+                    ctx.lineTo(poly[2].x, poly[2].y);
+                    ctx.lineTo(poly[3].x, poly[3].y);
+                    ctx.closePath();
+
+                    if (this.numPlayers === 2) {
+                        ctx.fillStyle = cell.colorIndex === 0 ? '#121826' : '#1e293b';
+                    } else {
+                        ctx.fillStyle = MASTER_PLAYERS[cell.s].tileTints[cell.colorIndex];
+                    }
+                    ctx.fill();
+
+                    for (let p = 0; p < this.numPlayers; p++) {
+                        const lm = this.lastMoves[p];
+                        if (lm && (lm.from.key === cell.key || lm.to.key === cell.key)) {
+                            ctx.fillStyle = MASTER_PLAYERS[p].lastMoveBg;
+                            ctx.fill();
+                        }
+                    }
+
+                    if (this.selectedCell && this.selectedCell.key === cell.key) {
+                        ctx.fillStyle = 'rgba(251, 191, 36, 0.42)';
+                        ctx.fill();
+                    }
+
+                    if (this.hintMove && (this.hintMove.from.key === cell.key || this.hintMove.to.key === cell.key)) {
+                        ctx.fillStyle = 'rgba(52, 211, 153, 0.38)';
+                        ctx.fill();
+                    }
+
+                    if (checkedKingKeys.has(cell.key)) {
+                        ctx.fillStyle = 'rgba(239, 68, 68, 0.72)';
+                        ctx.fill();
+                    }
+
+                    if (this.hoveredCell && this.hoveredCell.key === cell.key) {
+                        ctx.fillStyle = 'rgba(255, 255, 255, 0.08)';
+                        ctx.fill();
+                    }
+
+                    ctx.strokeStyle = 'rgba(255, 255, 255, 0.06)';
+                    ctx.lineWidth = 1;
+                    ctx.stroke();
+
+                    if (this.showCoords && (cell.r === 0 || cell.f === 0)) {
+                        ctx.fillStyle = 'rgba(255, 255, 255, 0.35)';
+                        const fontSize = this.numPlayers >= 6 ? 7 : (this.numPlayers >= 4 ? 8 : 9);
+                        ctx.font = `600 ${fontSize}px "JetBrains Mono", monospace`;
+                        ctx.textAlign = 'center';
+                        ctx.textBaseline = 'middle';
+                        const labelPos = lerpPt(poly[0], cell.center, 0.45);
+                        ctx.fillText(cell.coord, labelPos.x, labelPos.y);
+                    }
+                }
+
+                this.drawSectorSeams(ctx);
+
+                const dotScale = this.numPlayers >= 6 ? 0.72 : (this.numPlayers >= 4 ? 0.82 : 1.0);
+                for (const [, move] of legalMap.entries()) {
+                    const c = move.to.center;
+                    if (move.capture) {
+                        ctx.beginPath();
+                        ctx.arc(c.x, c.y, W * 0.024 * dotScale, 0, Math.PI * 2);
+                        ctx.strokeStyle = '#f43f5e';
+                        ctx.lineWidth = 3;
+                        ctx.stroke();
+                    } else {
+                        ctx.beginPath();
+                        ctx.arc(c.x, c.y, W * 0.011 * dotScale, 0, Math.PI * 2);
+                        ctx.fillStyle = 'rgba(52, 211, 153, 0.9)';
+                        ctx.fill();
+                        ctx.strokeStyle = '#064e3b';
+                        ctx.lineWidth = 1.5;
+                        ctx.stroke();
+                    }
+                }
+
+                const sizeFactor = { 2: 0.035, 3: 0.026, 4: 0.022, 5: 0.019, 6: 0.0165 }[this.numPlayers] || 0.024;
+                const pieceRadius = W * sizeFactor;
+                for (const [key, piece] of this.board.entries()) {
+                    const cell = this.topology.cellMap.get(key);
+                    if (!cell) continue;
+                    this.drawCustomPiece(ctx, cell.center.x, cell.center.y, piece, pieceRadius);
+                }
+
+                ctx.restore();
+            }
+
+            drawOuterFrame(ctx) {
+                const poly = this.topology.outerPolygon;
+                if (poly.length === 0) return;
+
+                ctx.save();
+                ctx.scale(1.025, 1.025);
+                ctx.beginPath();
+                poly.forEach((pt, idx) => {
+                    if (idx === 0) ctx.moveTo(pt.x, pt.y);
+                    else ctx.lineTo(pt.x, pt.y);
+                });
+                ctx.closePath();
+                ctx.fillStyle = '#05070f';
+                ctx.fill();
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.12)';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+                ctx.restore();
+
+                ctx.save();
+                ctx.scale(1.012, 1.012);
+                for (const edge of this.topology.homeEdges) {
+                    ctx.beginPath();
+                    ctx.moveTo(edge.p1.x, edge.p1.y);
+                    ctx.lineTo(edge.p2.x, edge.p2.y);
+                    ctx.strokeStyle = MASTER_PLAYERS[edge.p].primary;
+                    ctx.lineWidth = 4;
+                    ctx.stroke();
+                }
+                ctx.restore();
+            }
+
+            drawSectorSeams(ctx) {
+                ctx.strokeStyle = 'rgba(251, 191, 36, 0.3)';
+                ctx.lineWidth = 1.5;
+                for (const seam of this.topology.seamLines) {
+                    ctx.beginPath();
+                    ctx.moveTo(seam.p1.x, seam.p1.y);
+                    ctx.lineTo(seam.p2.x, seam.p2.y);
+                    ctx.stroke();
+                }
+
+                if (this.numPlayers >= 3) {
+                    ctx.beginPath();
+                    ctx.arc(0, 0, 4.5, 0, Math.PI * 2);
+                    ctx.fillStyle = '#fbbf24';
+                    ctx.shadowColor = '#fbbf24';
+                    ctx.shadowBlur = 10;
+                    ctx.fill();
+                }
+            }
+
+            drawCustomPiece(ctx, x, y, piece, radius) {
+                const pStyle = MASTER_PLAYERS[piece.owner];
+                ctx.save();
+                ctx.translate(x, y);
+
+                // Base podium disc
+                ctx.beginPath();
+                ctx.arc(0, 0, radius, 0, Math.PI * 2);
+
+                if (piece.frozen) {
+                    ctx.fillStyle = '#1e293b';
+                    ctx.strokeStyle = '#475569';
+                } else {
+                    const grad = ctx.createRadialGradient(-radius * 0.3, -radius * 0.3, radius * 0.1, 0, 0, radius);
+                    grad.addColorStop(0, pStyle.primary);
+                    grad.addColorStop(1, pStyle.secondary);
+                    ctx.fillStyle = grad;
+                    ctx.strokeStyle = pStyle.stroke;
+                }
+
+                ctx.shadowColor = 'rgba(0, 0, 0, 0.6)';
+                ctx.shadowBlur = 6;
+                ctx.shadowOffsetY = 3;
+                ctx.fill();
+
+                ctx.lineWidth = 1.5;
+                ctx.stroke();
+
+                // Draw Vector Icon Path matching reference icon set
+                ctx.shadowBlur = 0;
+                ctx.shadowOffsetY = 0;
+                ctx.fillStyle = piece.frozen ? '#94a3b8' : '#ffffff';
+
+                const pathString = PIECE_PATHS[piece.type];
+                if (pathString) {
+                    ctx.save();
+                    const iconScale = (radius * 1.5) / 24;
+                    ctx.scale(iconScale, iconScale);
+                    ctx.translate(-12, -12);
+                    const p = new Path2D(pathString);
+                    ctx.fill(p);
+                    ctx.restore();
+                }
+
+                ctx.restore();
+            }
+        }
+
+        const ui = {
+            toggleModal(id, show) {
+                const el = document.getElementById(id);
+                if (!el) return;
+                if (show) {
+                    el.classList.remove('hidden');
+                    el.classList.add('flex');
+                } else {
+                    el.classList.add('hidden');
+                    el.classList.remove('flex');
+                }
+            }
+        };
+
+        let game;
+        window.onload = () => {
+            game = new OmniChessGame();
+        };
+    </script>
+</body>
+</html>

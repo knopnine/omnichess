@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Play chess with two to six armies. Share a table, challenge AI, or watch a radial chess battle in OmniChess.">
+  <meta name="theme-color" content="#F5F0E6">
+  <title>OmniChess · Chess beyond two players</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="site-header">
+    <a class="brand" href="#/" aria-label="OmniChess home"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 21h14v-3H5z M7 17h10l3-11-5 5-3-8-3 8-5-5z"/></svg><span>OmniChess</span></a>
+    <nav aria-label="Main navigation"><a href="#/" data-nav="home">Home</a><a href="#/setup" data-nav="setup">Play</a><a href="#/guide" data-nav="guide">Guide</a></nav>
+    <span class="header-note">A larger table for a familiar game</span>
+  </header>
+  <div id="storage-warning" class="notice" role="status" hidden></div>
+  <main id="main" tabindex="-1">
+    <section id="home-page" data-page="home">
+      <div class="intro-layout">
+        <div class="intro-copy"><p class="eyebrow">Two to six players · One shared table</p><h1>Chess beyond<br>two players.</h1><p class="lead">A familiar opening. An unfamiliar frontier. Bring more armies to the board, command your corner, and see where the game takes you.</p>
+          <div class="actions"><a href="#/setup" class="button primary" data-mode="play">Play a Match</a><a href="#/setup" class="button" data-mode="watch">Watch AI Play</a></div>
+          <button class="resume-link" data-action="resume" hidden>Resume Saved Match</button>
+          <p class="quiet intro-footnote">Local play, human versus AI, or an all-AI match.<br>No account needed. Human players share this device.</p>
+        </div>
+        <figure class="board-figure"><canvas id="home-board" aria-label="A three-player radial board in its starting position"></canvas><figcaption><span>Three armies. One meeting point.</span><span>96 squares</span></figcaption></figure>
+      </div>
+      <div class="section-heading"><h2>The board grows.<br>The possibilities follow.</h2><p>Start with classic chess, or explore the boundaries between sectors.</p></div>
+      <div class="explain-grid">
+        <article><div class="illustration" id="count-diagram"></div><h3>Choose your table</h3><p>Two players share a classic square. Add an army and the board opens into a radial arena, up to six players and 192 squares.</p></article>
+        <article><svg class="illustration" viewBox="0 0 240 110" role="img" aria-label="A rook crosses from one sector into its neighbor"><path d="M20 90L110 90 120 15z" fill="#d9c49e" stroke="#69513b"/><path d="M120 15L130 90 220 90z" fill="#f4e8cf" stroke="#69513b"/><path d="M67 74L112 40 159 74" fill="none" stroke="#77521e" stroke-width="3"/><path d="M150 73l12 3-4-12" fill="none" stroke="#77521e" stroke-width="3"/></svg><h3>Meet at the seams</h3><p>Rooks cross into neighboring sectors. Diagonals can branch through the center. Your next move may come from an unexpected direction.</p></article>
+        <article><svg class="illustration" viewBox="0 0 240 110" role="img" aria-label="A fallen king's army joins the conqueror"><circle cx="54" cy="56" r="25" fill="#fffcf5" stroke="#a94350" stroke-width="4"/><path d="M44 68h20v-5H44z M51 40h6v7h7v5h-7v8h-6v-8h-7v-5h7z" fill="#24221e"/><path d="M91 55h48m-8-8 8 8-8 8" stroke="#69513b" stroke-width="2" fill="none"/><circle cx="170" cy="45" r="14" fill="#fffcf5" stroke="#77521e" stroke-width="4"/><circle cx="201" cy="68" r="14" fill="#fffcf5" stroke="#77521e" stroke-width="4"/></svg><h3>Conquer a new army</h3><p>In multiplayer conquest, defeating a king brings its remaining pieces under your command. Switch it off for conventional elimination.</p></article>
+      </div>
+    </section>
+
+    <section id="setup-page" data-page="setup" hidden>
+      <div class="page-heading"><div><p class="eyebrow">Before the first move</p><h1>Set the table.</h1></div><button class="button" data-action="resume" hidden>Resume Saved Match</button></div>
+      <div class="setup-layout"><div class="setup-preview"><canvas id="setup-board" aria-label="Preview of the selected starting board"></canvas><p id="setup-caption" class="quiet"></p></div>
+        <form id="setup-form" class="panel setup-form"><h2>Your match</h2><fieldset><legend>Number of players</legend><div class="player-count"> <label><input type="radio" name="players" value="2"><span>2</span></label><label><input type="radio" name="players" value="3" checked><span>3</span></label><label><input type="radio" name="players" value="4"><span>4</span></label><label><input type="radio" name="players" value="5"><span>5</span></label><label><input type="radio" name="players" value="6"><span>6</span></label></div></fieldset>
+          <fieldset><legend>Who commands each army?</legend><div id="setup-seats"></div></fieldset>
+          <div class="form-row"><label for="setup-victory">Victory rule</label><select id="setup-victory"><option value="last_standing">Last king standing · freeze armies</option><option value="remove_eliminated">Last king standing · remove armies</option><option value="first_checkmate">First checkmate wins</option></select><p id="classic-note" class="quiet" hidden>Two-player chess uses checkmate and automatic casual draws.</p></div>
+          <label class="check-label"><input id="setup-conquest" type="checkbox" checked> King's conquest <span class="quiet">3–6 players</span></label>
+          <div class="form-pair"><div class="form-row"><label for="setup-difficulty">AI difficulty</label><select id="setup-difficulty"><option value="tactical">Tactical</option><option value="casual">Casual</option></select></div><div class="form-row"><label for="setup-promotion">Pawn promotion</label><select id="setup-promotion"><option value="ask">Ask me</option><option value="auto">Queen automatically</option></select></div></div>
+          <button class="button primary start-button" type="submit">Start Match</button><p class="quiet">Human seats share this device. Your match is saved locally when storage is available.</p>
+        </form>
+      </div>
+    </section>
+
+    <section id="arena-page" data-page="play" hidden>
+      <div class="match-header"><div><p id="match-details" class="eyebrow"></p><h1 id="turn-text">Gold to move</h1></div><div class="actions"><button class="button" data-action="settings">Settings</button><button class="button" data-action="reset">Reset</button></div></div>
+      <div class="arena-layout">
+        <div class="board-column"><canvas id="game-board" tabindex="0" role="group" aria-describedby="board-help board-description" aria-label="Chess board"></canvas><p id="board-description">Select a piece to see its legal moves.</p><p id="board-help" class="quiet">Arrow keys navigate · Enter selects or moves · Escape clears</p>
+          <div class="board-controls"><div class="actions human-controls"><button class="button" data-action="undo">Undo</button><button class="button" data-action="hint">Hint</button><button class="button" data-action="coords" aria-pressed="true">Coordinates</button></div><div class="actions simulation-controls"><button class="button primary" data-action="pause">Resume</button><button class="button" data-action="step">Step</button><label class="speed-control">Speed<select id="speed"><option value="120">Turbo</option><option value="420" selected>Normal</option><option value="900">Cinematic</option></select></label></div></div>
+        </div>
+        <div class="mobile-tabs" role="tablist" aria-label="Match details"><button id="armies-tab" role="tab" aria-controls="army-panel" aria-selected="true" data-tab="armies">Armies</button><button id="moves-tab" role="tab" aria-controls="moves-panel" aria-selected="false" data-tab="moves">Moves</button></div>
+        <section class="army-panel panel" id="army-panel" aria-labelledby="army-heading"><div class="panel-heading"><h2 id="army-heading">Active armies</h2><span class="quiet">By win estimate</span></div><div id="army-list"></div><p class="estimate-note">Position-based estimates, not calibrated probabilities. Draws are not predicted.</p></section>
+        <section class="moves-panel panel" id="moves-panel" aria-labelledby="moves-heading"><details open><summary><h2 id="moves-heading">Move history</h2><span id="ply-label">Ply 0</span></summary><ol id="move-list"></ol></details><p class="quiet">Checks, conquests, and eliminations appear here alongside moves.</p></section>
+      </div><div id="arena-message" class="arena-message" role="status"></div>
+    </section>
+
+    <section id="guide-page" data-page="guide" hidden>
+      <div class="page-heading"><div><p class="eyebrow">A familiar game, with a few new paths</p><h1>A guide to the board.</h1></div><button class="button" id="guide-return" data-action="return-match" hidden>Return to Match</button></div>
+      <div class="guide-layout"><div class="guide-board"><canvas id="guide-board" aria-label="Rook seam destinations on an empty three-player board"></canvas><div class="actions guide-examples"><button class="button primary" data-example="rook" aria-pressed="true">Rook seams</button><button class="button" data-example="bishop" aria-pressed="false">Bishop branches</button></div><p id="guide-caption" class="quiet">Dots show where the rook can move across a seam.</p></div><div class="guide-text">
+        <article><h2>Two players: classic chess</h2><p>Gold moves first. Pawns move toward the opposing army, capture diagonally, and may advance two squares on their first move. The standard rules for check, castling, en passant, and promotion apply. A king is checkmated, never captured.</p><p>Stalemate is a draw. This game automatically draws on threefold repetition or 50 full moves without a pawn move or capture. It also detects common insufficient-material positions. These are casual automatic rules, not complete tournament adjudication or detection of every possible dead position.</p></article>
+        <article><h2>Three to six: across the sectors</h2><p>Each additional army adds 32 squares. Left-wing files cross into the clockwise neighbor; right-wing files cross counter-clockwise. Rooks follow those seams. Diagonals at the central vertex can branch into opposing sectors. Select a piece to see the available destinations.</p><p>Pawns advance toward the center in their owner's sector, then away from it in other sectors. A pawn reaching another sector's back rank promotes. Conquered pawns follow their new owner's direction.</p></article>
+        <article><h2>Conquest and elimination</h2><p>With conquest enabled, capturing or checkmating a king converts its remaining non-king pieces to the conqueror. If multiple armies threaten the king, the most recent mover is credited when it is an attacker; otherwise the first attacking army in board order receives the conquest.</p><p>Without conquest, eliminated armies freeze as uncapturable obstacles or are removed, according to your settings. Stalemate eliminates an army in multiplayer. First-checkmate mode ends the match immediately when a king is checkmated or captured.</p></article>
+        <article><h2>Reading the estimates</h2><p>Winning prospects compare material, available movement, center control, pawn progress, threatened pieces, and king safety. Percentages total 100% across active armies, and the list is ranked highest first. These are heuristic estimates, not measured probabilities. A drawn match displays Draw.</p></article>
+        <article><h2>Pausing, undoing, and saving</h2><p>Settings and this guide suspend AI, restoring its prior pause state when you return directly to the match. Human-mode Undo returns to the latest human decision, removing subsequent AI replies. Spectator Undo removes one move and stays paused. Undo keeps current controllers and settings; multiplayer rule changes remain in effect.</p><p>Matches are saved in this browser when storage is available. Returning from Home or Setup, or restoring a save, pauses AI. Human turns can still be played while AI is paused. Saves do not follow you between devices, browsers, or preview and production addresses.</p></article>
+      </div></div>
+    </section>
+  </main>
+  <footer class="site-footer"><span>OmniChess</span><span>Local chess, at a larger table.</span><a href="#/guide">Rules &amp; guide</a></footer>
+  <div id="announcer" class="sr-only" aria-live="polite" aria-atomic="true"></div>
+  <div id="turn-announcer" class="sr-only" aria-live="polite" aria-atomic="true"></div>
+  <dialog id="settings-dialog" aria-labelledby="settings-title"><form method="dialog"><div class="dialog-heading"><h2 id="settings-title">Match settings</h2><button class="close-button" aria-label="Close settings" value="close">×</button></div><p class="quiet">AI is suspended while this dialog is open.</p><div class="form-row"><label for="match-difficulty">AI difficulty</label><select id="match-difficulty"><option value="tactical">Tactical</option><option value="casual">Casual</option></select></div><div class="form-row"><label for="match-victory">Victory rule</label><select id="match-victory"><option value="last_standing">Last king standing · freeze armies</option><option value="remove_eliminated">Last king standing · remove armies</option><option value="first_checkmate">First checkmate wins</option></select></div><label class="check-label"><input id="match-conquest" type="checkbox"> King's conquest (3–6 players)</label><div class="form-row"><label for="match-promotion">Pawn promotion</label><select id="match-promotion"><option value="ask">Ask me</option><option value="auto">Queen automatically</option></select></div><p class="quiet">Changes apply immediately. Undo keeps these settings.</p><div class="actions"><button class="button" type="button" data-action="spectate">Switch all seats to AI</button><button class="button primary" value="close">Done</button></div></form></dialog>
+  <dialog id="promotion-dialog" aria-labelledby="promotion-title"><h2 id="promotion-title">Promote your pawn</h2><p>Choose the piece that takes its place.</p><div class="promotion-choices" id="promotion-choices"></div><button class="button" data-action="cancel-promotion">Cancel move</button></dialog>
+  <dialog id="results-dialog" aria-labelledby="results-title"><p class="eyebrow">The final position</p><h2 id="results-title"></h2><p id="results-reason"></p><div class="actions"><button class="button primary" data-action="rematch">Rematch</button><button class="button" data-action="new-setup">New Setup</button><button class="button" data-action="inspect">Inspect Board</button></div></dialog>
+  <dialog id="confirm-dialog" aria-labelledby="confirm-title"><h2 id="confirm-title">Replace this match?</h2><p id="confirm-message"></p><div class="actions"><button class="button" id="confirm-cancel">Keep Match</button><button class="button primary" id="confirm-accept">Start New Match</button></div></dialog>
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>

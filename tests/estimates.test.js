@@ -1,0 +1,21 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { Game } from '../src/engine/game.js';
+import { rankArmies } from '../src/ui/app.js';
+import { fixture, cell, move } from './helpers.js';
+const distribution = values => { assert.ok(values.every(v=>Number.isFinite(v)&&v>=0&&v<=100)); assert.equal(values.reduce((s,v)=>s+Math.round(v*10),0),1000); };
+for(let n=2;n<=6;n++) test(`${n} players start evenly with correct board size`,()=>{
+    const g=new Game({numPlayers:n}), values=g.estimateWinChances(); distribution(values);
+    assert.ok(Math.max(...values)-Math.min(...values)<.11); assert.equal(g.board.size,n*16); assert.equal(g.topology.cells.length,n*32);
+});
+test('material loss reduces prospects',()=>{const g=new Game({numPlayers:2});g.board.delete(cell(g,'d8').key);const v=g.estimateWinChances();distribution(v);assert.ok(v[1]<50);});
+test('king threats reduce prospects',()=>{const g=fixture(2,{e1:['K',0],e8:['K',1],a3:['R',1]});const safe=g.estimateWinChances()[0];const p=g.board.get(cell(g,'a3').key);g.board.delete(cell(g,'a3').key);g.board.set(cell(g,'e3').key,p);assert.ok(g.estimateWinChances()[0]<safe);});
+test('pawn diagonals attack; pawn advances do not',()=>{const g=fixture(2,{e1:['K',0],e8:['K',1],e2:['P',1]});const safe=g.estimateWinChances()[0];g.board.delete(cell(g,'e2').key);g.board.set(cell(g,'d2').key,{type:'P',owner:1,moved:true,frozen:false});assert.ok(g.estimateWinChances()[0]<safe);});
+test('sole surviving army receives 100%',()=>{const g=new Game({numPlayers:6});g.eliminated=[true,true,true,false,true,true];assert.deepEqual(g.estimateWinChances(),[0,0,0,100,0,0]);});
+test('conquest credits new owner and removes victim share',()=>{const g=new Game();g.handlePlayerElimination(1,true,0,true);const v=g.estimateWinChances();distribution(v);assert.equal(v[1],0);assert.ok(v[0]>v[2]);assert.equal([...g.board.values()].filter(p=>p.owner===0).length,31);});
+for(const mode of ['last_standing','remove_eliminated']) test(`${mode} excludes defeated armies`,()=>{const g=new Game({numPlayers:4});g.convertOnKingKill=false;g.victoryMode=mode;g.handlePlayerElimination(1,true,0);const v=g.estimateWinChances();distribution(v);assert.equal(v[1],0);assert.equal([...g.board.values()].filter(p=>p.owner===1).length,mode==='last_standing'?16:0);});
+test('first-checkmate winner gets 100% with other survivors',()=>{const g=new Game({numPlayers:4,victoryMode:'first_checkmate'});g.handlePlayerElimination(1,true,2);assert.deepEqual(g.estimateWinChances(),[0,0,100,0]);});
+test('undo and reset restore estimates',()=>{const g=new Game({numPlayers:2});const before=g.estimateWinChances();move(g,'e2','e4');g.undoMove();assert.deepEqual(g.estimateWinChances(),before);g.triggerGameOver(1);g.newGame();assert.equal(g.winnerId,null);assert.deepEqual(g.estimateWinChances(),before);});
+test('spectator stepping updates deterministic estimates',()=>{const g=new Game({numPlayers:6,seatsIsAI:[true,true,true,true,true,true]});g.enterArena();g.stepAI();assert.equal(g.plyCount,1);distribution(g.estimateWinChances());assert.deepEqual(g.estimateWinChances(),g.estimateWinChances());});
+test('ranking is descending with stable ties',()=>{const g=new Game({numPlayers:6});g.estimateWinChances=()=>[10,25,5,40,20,0];assert.deepEqual(rankArmies(g),[3,1,4,0,2,5]);g.estimateWinChances=()=>[20,20,20,20,20,0];assert.deepEqual(rankArmies(g),[0,1,2,3,4,5]);});
+test('draw ends percentage display data',()=>{const g=new Game({numPlayers:2});g.finish({type:'draw',reason:'Stalemate'});assert.deepEqual(g.estimateWinChances(),[0,0]);});
