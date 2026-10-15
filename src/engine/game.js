@@ -9,7 +9,9 @@ export class Game {
         this.clock = options.clock || { setTimeout: (fn, ms) => setTimeout(fn, ms), clearTimeout: id => clearTimeout(id) };
         this.onChange = options.onChange || (() => {});
         this.onEvent = options.onEvent || (() => {});
+        this.onMove = options.onMove || (() => {});
         this.numPlayers = options.numPlayers || 3;
+        this.boardStyle = options.boardStyle || 'radial';
         this.seatsIsAI = options.seatsIsAI ? [...options.seatsIsAI] : [false, true, true, true, true, true];
         this.difficulty = options.difficulty || 'tactical';
         this.victoryMode = options.victoryMode || 'last_standing';
@@ -59,7 +61,8 @@ export class Game {
 
     newGame() {
         this.cancelAI();
-        this.topology = new BoardTopology(this.numPlayers);
+        this.topology = new BoardTopology(this.numPlayers, this.boardStyle);
+        this.boardStyle = this.topology.boardStyle;
         this.board = new Map();
         this.turn = 0; this.plyCount = 0;
         this.eliminated = new Array(this.numPlayers).fill(false);
@@ -71,12 +74,19 @@ export class Game {
         this.castlingRights = [{ K: true, Q: true }, { K: true, Q: true }];
         this.enPassant = null; this.halfMoveCount = 0; this.repetitions = new Map();
         const backRank = ['R', 'N', 'B', 'Q', 'K', 'B', 'N', 'R'];
+        if(this.boardStyle==='mobius') {
+            for(let owner=0;owner<2;owner++)for(let x=0;x<8;x++) {
+                this.board.set(this.topology.gridCell(x,owner===0?0:7).key,{type:backRank[x],owner,moved:false,frozen:false});
+                for(const [y,pawnDirection] of owner===0?[[1,1],[13,-1]]:[[6,-1],[8,1]])this.board.set(this.topology.gridCell(x,y).key,{type:'P',owner,moved:false,frozen:false,pawnDirection});
+            }
+        } else {
         for (let owner = 0; owner < this.numPlayers; owner++) {
             const rank = this.numPlayers === 2 && owner === 1 ? [...backRank].reverse() : backRank;
             for (let f = 0; f < 8; f++) {
                 this.board.set(this.topology.key(owner, 0, f), { type: rank[f], owner, moved: false, frozen: false });
                 this.board.set(this.topology.key(owner, 1, f), { type: 'P', owner, moved: false, frozen: false });
             }
+        }
         }
         if (this.numPlayers === 2) this.repetitions.set(positionKey(this), 1);
         this.emit(); this.scheduleNextTurnIfNeeded();
@@ -190,6 +200,14 @@ export class Game {
         if (captured?.type === 'K' && this.numPlayers > 2) this.handlePlayerElimination(captured.owner, true, piece.owner, true);
         if (!this.gameOver) this.advanceTurn();
         this.moveLogs = this.moveLogs.slice(0,200);
+        const rookFrom = move.rookFrom || this.topology.key(move.from.s,0,move.castle==='K'?7:0);
+        const rookTo = move.rookTo || this.topology.key(move.from.s,0,move.castle==='K'?5:3);
+        this.onMove({
+            ply:this.plyCount,
+            pieces:[{from:move.from.key,to:move.to.key,piece:{...piece},travelFiles:move.travelFiles,crossedSeam:move.crossedSeam},
+                ...(move.castle?[{from:rookFrom,to:rookTo,piece:{...this.board.get(rookTo)}}]:[])],
+            captured:captured?{key:move.enPassant || move.to.key,piece:{...captured}}:null,
+        });
         this.emit(); this.scheduleNextTurnIfNeeded();
         return true;
     }

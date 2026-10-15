@@ -1,17 +1,20 @@
-import { BoardTopology } from './topology.js';
+import { BoardTopology, BOARD_STYLES } from './topology.js';
 
 export const SAVE_KEY = 'omnichess.match';
 export const SAVE_VERSION = 1;
 const integer = (n, max) => Number.isInteger(n) && n >= 0 && n <= max;
 const bools = (value, length) => Array.isArray(value) && value.length === length && value.every(v => typeof v === 'boolean');
 const types = ['P', 'N', 'B', 'R', 'Q', 'K'];
+const savedStyle=o=>o.boardStyle==='mobius' && o.mobiusVersion===undefined?'mobius-8x8':o.boardStyle;
 
 function validState(state, n, keys) {
-    if (!state || !Array.isArray(state.board) || state.board.length > n * 32 || !integer(state.turn, n - 1) || !integer(state.plyCount, 1e7) || !integer(state.halfMoveCount, 1e7)) return false;
+    if (!state || !Array.isArray(state.board) || state.board.length > keys.size || !integer(state.turn, n - 1) || !integer(state.plyCount, 1e7) || !integer(state.halfMoveCount, 1e7)) return false;
     const seen = new Set();
     for (const entry of state.board) {
         if (!Array.isArray(entry) || entry.length !== 2) return false;
         const [key, p] = entry;
+        if(p?.pawnTwisted!==undefined && typeof p.pawnTwisted!=='boolean')return false;
+        if(p?.pawnDirection!==undefined && ![-1,1].includes(p.pawnDirection))return false;
         if (!keys.has(key) || seen.has(key) || !p || !types.includes(p.type) || !integer(p.owner, n - 1) || typeof p.moved !== 'boolean' || typeof p.frozen !== 'boolean') return false;
         seen.add(key);
     }
@@ -37,7 +40,10 @@ export function validateSave(data) {
     const o = data.options, n = o?.numPlayers;
     if (!Number.isInteger(n) || n < 2 || n > 6 || !bools(o.seatsIsAI, 6)) return false;
     if (!['casual', 'tactical'].includes(o.difficulty) || !['last_standing', 'remove_eliminated', 'first_checkmate'].includes(o.victoryMode) || !['ask', 'auto'].includes(o.autoQueen) || typeof o.convertOnKingKill !== 'boolean' || typeof o.showCoords !== 'boolean' || ![120, 420, 900].includes(o.aiDelay)) return false;
-    const keys = new Set(new BoardTopology(n).cellMap.keys());
+    if(o.boardStyle !== undefined && (!Object.hasOwn(BOARD_STYLES,o.boardStyle) || (BOARD_STYLES[o.boardStyle].players!==null && BOARD_STYLES[o.boardStyle].players!==n))) return false;
+    if(o.mobiusVersion!==undefined && (o.boardStyle!=='mobius' || o.mobiusVersion!==2))return false;
+    const keys = new Set(new BoardTopology(n,savedStyle(o)).cellMap.keys());
+    if(o.boardStyle==='mobius' && o.mobiusVersion===2 && [data.state,...(Array.isArray(data.history)?data.history.map(h=>h?.state):[])].some(state=>!Array.isArray(state?.board) || !state.board.every(entry=>entry?.[1]?.type!=='P' || [-1,1].includes(entry[1].pawnDirection))))return false;
     if (!validState(data.state, n, keys) || !Array.isArray(data.history) || data.history.length > 35) return false;
     return data.history.every(h => h && typeof h.human === 'boolean' && validState(h.state, n, keys) && h.state.plyCount < data.state.plyCount);
 }
@@ -45,7 +51,7 @@ export function validateSave(data) {
 export function serializeGame(game) {
     return {
         version: SAVE_VERSION, savedAt: new Date().toISOString(),
-        options: Object.fromEntries(['numPlayers', 'seatsIsAI', 'difficulty', 'victoryMode', 'convertOnKingKill', 'autoQueen', 'aiDelay', 'showCoords'].map(k => [k, game[k]])),
+        options: {...Object.fromEntries(['numPlayers', 'boardStyle', 'seatsIsAI', 'difficulty', 'victoryMode', 'convertOnKingKill', 'autoQueen', 'aiDelay', 'showCoords'].map(k => [k, game[k]])),...(game.boardStyle==='mobius'?{mobiusVersion:2}:{})},
         state: game.snapshot(), history: game.history,
     };
 }
@@ -53,7 +59,8 @@ export function serializeGame(game) {
 export function restoreGame(game, data) {
     if (!validateSave(data)) throw new Error('Invalid or unsupported save');
     game.cancelAI(); Object.assign(game, data.options); game.seatsIsAI = [...data.options.seatsIsAI];
-    game.topology = new BoardTopology(game.numPlayers);
+    game.boardStyle = savedStyle(data.options) || 'radial';
+    game.topology = new BoardTopology(game.numPlayers,game.boardStyle);
     game.restoreState(data.state); game.history = structuredClone(data.history);
     game.isPaused = true; game.inArena = false; game.suspensions.clear();
     game.emit();

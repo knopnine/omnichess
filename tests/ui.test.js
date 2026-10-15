@@ -5,6 +5,17 @@ import { JSDOM } from 'jsdom';
 import { App } from '../src/ui/app.js';
 import { FakeClock, move, fixture, cell } from './helpers.js';
 const html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
+test('board-style selection previews and starts the three-player trial only',()=>{
+    const {app,dom}=createApp();
+    app.$('setup-board-style').value='three-arm';app.showSetup();
+    assert.equal(app.previewGame.topology.cells.length,144);
+    assert.match(app.$('setup-caption').textContent,/144 squares/);
+    app.startSetup();assert.equal(app.game.boardStyle,'three-arm');
+    dom.window.document.querySelector('input[name=players][value="4"]').checked=true;app.showSetup();
+    assert.equal(app.$('setup-board-style').value,'radial');
+    assert.equal(app.$('setup-board-style').querySelector('[value="three-arm"]'),null);
+    app.game.cancelAI();dom.window.close();
+});
 function createApp() {
     const dom=new JSDOM(html,{url:'http://localhost/'});globalThis.window=dom.window;globalThis.document=dom.window.document;dom.window.scrollTo=()=>{};
     dom.window.HTMLDialogElement.prototype.showModal=function(){this.setAttribute('open','');};
@@ -12,8 +23,47 @@ function createApp() {
     const clock=new FakeClock();const app=new App(dom.window.document,{clock,boardFactory:()=>({draw(){}})});
     return {app,dom,clock};
 }
+for(const style of ['donut','mobius'])test(`${style} setup starts an experimental two-player match and is absent for multiplayer`,()=>{
+    const {app,dom}=createApp();
+    dom.window.document.querySelector('input[name=players][value="2"]').checked=true;app.showSetup();
+    app.$('setup-board-style').value=style;app.showSetup();app.startSetup();
+    assert.equal(app.game.boardStyle,style);assert.equal(app.game.topology.cells.length,style==='mobius'?112:64);
+    assert.match(app.$('match-details').textContent,/Experimental rules/);
+    dom.window.document.querySelector('input[name=players][value="3"]').checked=true;app.showSetup();
+    assert.equal(app.$('setup-board-style').querySelector(`[value="${style}"]`),null);
+    app.game.cancelAI();dom.window.close();
+});
+for(const [n,style,label] of [[5,'five-arm','Five-arm'],[6,'six-arm','Six-arm']])test(`${style} setup previews and starts only with its matching player count`,()=>{
+    const {app,dom}=createApp();
+    dom.window.document.querySelector(`input[name=players][value="${n}"]`).checked=true;app.showSetup();
+    app.$('setup-board-style').value=style;app.showSetup();
+    assert.equal(app.previewGame.topology.cells.length,n*48);assert.match(app.$('setup-caption').textContent,new RegExp(`${n*48} squares`));
+    app.startSetup();assert.equal(app.game.boardStyle,style);assert.ok(app.$('match-details').textContent.includes(label));
+    dom.window.document.querySelector('input[name=players][value="3"]').checked=true;app.showSetup();
+    assert.equal(app.$('setup-board-style').value,'radial');assert.equal(app.$('setup-board-style').querySelector(`[value="${style}"]`),null);
+    app.game.cancelAI();dom.window.close();
+});
+test('four-player cross previews, starts, and is disabled for other counts',()=>{
+    const {app,dom}=createApp();
+    dom.window.document.querySelector('input[name=players][value="4"]').checked=true;app.showSetup();
+    app.$('setup-board-style').value='cross';app.showSetup();
+    assert.equal(app.previewGame.topology.cells.length,192);assert.match(app.$('setup-caption').textContent,/192 squares/);
+    app.startSetup();assert.equal(app.game.boardStyle,'cross');assert.match(app.$('match-details').textContent,/Cross/);
+    dom.window.document.querySelector('input[name=players][value="5"]').checked=true;app.showSetup();
+    assert.equal(app.$('setup-board-style').value,'radial');assert.equal(app.$('setup-board-style').querySelector('[value="cross"]'),null);
+    app.game.cancelAI();dom.window.close();
+});
 test('setup supports all counts and disables multiplayer rules in classic mode',()=>{
-    const {app,dom}=createApp();for(let n=2;n<=6;n++){const radio=dom.window.document.querySelector(`input[name=players][value="${n}"]`);radio.checked=true;app.showSetup();assert.equal(app.$('setup-seats').children.length,n);assert.equal(app.$('setup-conquest').disabled,n===2);assert.equal(app.previewGame.topology.cells.length,n*32);}dom.window.close();
+    const {app,dom}=createApp();
+    const styles={2:['radial','donut','mobius'],3:['radial','three-arm'],4:['radial','cross'],5:['radial','five-arm'],6:['radial','six-arm']};
+    for(let n=2;n<=6;n++){
+        dom.window.document.querySelector(`input[name=players][value="${n}"]`).checked=true;app.showSetup();
+        assert.equal(app.$('setup-seats').children.length,n);
+        assert.equal(app.$('setup-conquest').disabled,n===2);
+        assert.equal(app.previewGame.topology.cells.length,n*32);
+        assert.deepEqual(Array.from(app.$('setup-board-style').options,option=>option.value),styles[n]);
+    }
+    dom.window.close();
 });
 test('ranked cards retain controller identity and keyboard focus',()=>{
     const {app,dom}=createApp();app.hasMatch=true;dom.window.location.hash='#/play';app.route();const g=app.game;const controller=app.$('army-list').querySelector('[data-seat="1"]');controller.focus();g.estimateWinChances=()=>[10,70,20];app.renderArmies();

@@ -1,5 +1,7 @@
 import { PIECE_VALUES } from './players.js';
 import { attackTargets } from './rules.js';
+import { crossPawnProgress } from './cross.js';
+import { referenceProgress } from './surfaces.js';
 export function estimateWinChances(game) {
                 const chances = new Array(game.numPlayers).fill(0);
                 if (game.gameOver && game.winnerId !== null) {
@@ -27,9 +29,9 @@ export function estimateWinChances(game) {
                     const moves = game.getPseudoMovesForCell(cell, game.board);
                     scores[owner] += piece.type === 'K' ? 0 : PIECE_VALUES[piece.type];
                     scores[owner] += new Set(moves.map(m => m.to.key)).size * 0.035;
-                    if (piece.type !== 'K') scores[owner] += cell.r * 0.1;
+                    if (piece.type !== 'K') scores[owner] += (game.boardStyle==='mobius'?referenceProgress(cell,piece):game.boardStyle==='cross' && cell.s===4 ? 4 : cell.r) * 0.1;
                     if (piece.type === 'P') {
-                        const progress = cell.s === owner ? cell.r : 7 - cell.r;
+                        const progress = game.boardStyle==='mobius'?referenceProgress(cell,piece):game.boardStyle==='cross' ? crossPawnProgress(cell,owner) : cell.s === owner ? cell.r : game.topology.ranks*2-1 - cell.r;
                         scores[owner] += Math.max(0, progress - 1) * 0.12;
                     }
                     for (const target of attackTargets(game, cell)) attacks[owner].add(target);

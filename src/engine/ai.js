@@ -1,5 +1,7 @@
 import { PIECE_VALUES } from './players.js';
 import { attackTargets } from './rules.js';
+import { crossPawnProgress } from './cross.js';
+import { referenceProgress } from './surfaces.js';
 
 export function chooseBestMove(game, owner) {
     const moves = game.getAllLegalMovesForPlayer(owner);
@@ -10,8 +12,8 @@ export function chooseBestMove(game, owner) {
         let score = target ? PIECE_VALUES[target.type] * 12 - PIECE_VALUES[mover.type] * 0.8 : 0;
         if (target?.type === 'K') score += 1000;
         if (move.promotion) score += 80;
-        score += move.to.r === 3 ? 1.8 : move.to.r === 2 ? 1 : 0;
-        if (mover.type === 'P') score += (move.to.s === owner ? move.to.r : 7 - move.to.r) * 0.65;
+        score += game.boardStyle==='cross' && move.to.s===4 ? 1.8 : move.to.r === 3 ? 1.8 : move.to.r === 2 ? 1 : 0;
+        if (mover.type === 'P') score += (game.boardStyle==='mobius'?referenceProgress(move.to,mover):game.boardStyle==='cross' ? crossPawnProgress(move.to,owner) : move.to.s === owner ? move.to.r : game.topology.ranks*2-1 - move.to.r) * 0.65;
         if (move.castle) score += 4.5;
         if (game.difficulty === 'tactical') {
             const next = game.simulateMove(move);

@@ -1,7 +1,10 @@
 import { multiplayerRules } from './multiplayer.js';
+import { crossMoves } from './cross.js';
+import { isSurface, surfaceMoves } from './surfaces.js';
 
-export const globalSquare = cell => ({ x: cell.s === 0 ? cell.f : 7 - cell.f, y: cell.s === 0 ? cell.r : 7 - cell.r });
+export const globalSquare = cell => ({ x: cell.x??(cell.s === 0 ? cell.f : 7 - cell.f), y: cell.y??(cell.s === 0 ? cell.r : 7 - cell.r) });
 export function squareCell(topology, x, y) {
+    if(topology.boardStyle==='mobius')return topology.gridCell(x,y);
     if (x < 0 || x > 7 || y < 0 || y > 7) return null;
     return y < 4 ? topology.getCell(0, y, x) : topology.getCell(1, 7 - y, 7 - x);
 }
@@ -75,6 +78,8 @@ function classicMoves(game, from, board, attacks = false) {
 }
 
 export function pseudoMoves(game, cell, board = game.board) {
+    if(isSurface(game.boardStyle)) return surfaceMoves(game,cell,board);
+    if(game.boardStyle === 'cross') return cell ? crossMoves(game,cell,board) : [];
     if (game.numPlayers === 2) return classicMoves(game, cell, board);
     return multiplayerRules.multiPseudo.call(game, cell, board);
 }
@@ -82,6 +87,8 @@ export function pseudoMoves(game, cell, board = game.board) {
 export function attackTargets(game, cell, board = game.board) {
     const piece = board.get(cell.key);
     if (!piece || piece.frozen) return [];
+    if(isSurface(game.boardStyle)) return surfaceMoves(game,cell,board,true).map(m=>m.to.key);
+    if(game.boardStyle === 'cross') return crossMoves(game,cell,board,true).map(m=>m.to.key);
     if (game.numPlayers === 2) return classicMoves(game, cell, board, true).map(m => m.to.key);
     if (piece.type === 'P') {
         const dr = cell.s === piece.owner ? 1 : -1;
@@ -110,7 +117,7 @@ export function simulate(game, move, board = game.board) {
     if (!moving) throw new Error('Move has no piece');
     next.delete(move.from.key);
     if (move.enPassant) next.delete(move.enPassant);
-    next.set(move.to.key, { ...moving, moved: true, type: move.promotion ? move.promoteTo || 'Q' : moving.type });
+    next.set(move.to.key, { ...moving, ...(move.pawnTwisted===undefined?{}:{pawnTwisted:move.pawnTwisted}), ...(move.pawnDirection===undefined?{}:{pawnDirection:move.pawnDirection}), moved: true, type: move.promotion ? move.promoteTo || 'Q' : moving.type });
     if (move.castle) {
         const rookFrom = move.rookFrom || game.topology.key(move.from.s, 0, move.castle === 'K' ? 7 : 0);
         const rookTo = move.rookTo || game.topology.key(move.from.s, 0, move.castle === 'K' ? 5 : 3);
@@ -151,21 +158,22 @@ export function updateClassicMetadata(game, move, piece, captured) {
         if (to.x === 0) game.castlingRights[captured.owner].Q = false;
         if (to.x === 7) game.castlingRights[captured.owner].K = false;
     }
-    game.enPassant = piece.type === 'P' && Math.abs(from.y - to.y) === 2
+    game.enPassant = piece.type === 'P' && move.doublePawn
         ? { target: squareCell(game.topology, from.x, (from.y + to.y) / 2).key, pawn: move.to.key, owner: piece.owner } : null;
     game.halfMoveCount = piece.type === 'P' || captured ? 0 : game.halfMoveCount + 1;
     // Positions before a pawn move or capture cannot recur; pruning also bounds saves.
-    if (piece.type === 'P' || captured) game.repetitions.clear();
+    if (captured || (piece.type === 'P' && !isSurface(game.boardStyle))) game.repetitions.clear();
 }
 
 export function positionKey(game) {
-    const placement = [...game.board].sort(([a], [b]) => a.localeCompare(b)).map(([key, p]) => `${key}:${p.owner}${p.type}`).join('|');
+    const placement = [...game.board].sort(([a], [b]) => a.localeCompare(b)).map(([key, p]) => `${key}:${p.owner}${p.type}${p.type==='P'&&p.pawnTwisted?'t':''}${p.type==='P'&&p.pawnDirection!==undefined?'d'+p.pawnDirection:''}${p.type==='P'&&p.moved&&isSurface(game.boardStyle)?'m':''}`).join('|');
     const ep = game.enPassant && allLegalMoves(game, game.turn).some(m => m.enPassant) ? game.enPassant.target : '-';
     return `${placement}/${game.turn}/${game.castlingRights.map(r => `${+r.K}${+r.Q}`).join('')}/${ep}`;
 }
 
 export function insufficientMaterial(game) {
     const pieces = [...game.board].filter(([, p]) => p.type !== 'K');
+    if(isSurface(game.boardStyle))return pieces.length===0;
     if (!pieces.length) return true;
     if (pieces.length === 1 && ['B', 'N'].includes(pieces[0][1].type)) return true;
     if (pieces.every(([, p]) => p.type === 'B')) {

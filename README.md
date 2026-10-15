@@ -1,65 +1,133 @@
+![OmniChess — chess beyond two players](docs/hero.jpg)
+
 # OmniChess
 
-A static, local chess game for two to six armies. Play on one shared device, mix human and AI seats, or watch an all-AI match. The interface uses warm ivory, walnut, and brass, with Source Serif 4 and Source Sans 3 bundled locally.
+An experimental chess playground for **two to six players**. Share one device with friends, play against AI, or watch the armies battle in spectator mode.
 
-## Run locally
+Built from a simple question: *what would chess look like if more than two armies shared the table?* OmniChess explores radial boards, rectangular arms, conquest, a donut, and a Möbius strip.
 
-Use Node.js 24 LTS and npm. Dependencies are pinned by `package-lock.json`.
+Vanilla JavaScript, Canvas, Vite, and Tailwind CSS. Static hosting; no account, backend, or runtime CDN required.
+
+## Try it locally
+
+Install **Node.js 24** and npm, then:
 
 ```sh
+git clone https://github.com/knopnine/omnichess.git
+cd omnichess
 npm ci
 npm run dev
-npm test
-npm run build
-npm run preview
 ```
 
-Vite builds into `dist`. Open the HTTP address printed by the dev or preview command. ES modules require HTTP hosting; opening `index.html` with a file URL is unsupported.
+Open the URL printed by Vite. Choose **Play a Match** or **Watch AI Play**, select a player count and board style, assign human/AI seats, and start.
 
-## Screens
+Human players share the same screen and input device. Remote multiplayer is not implemented.
 
-- `#/`: introduction, Play a Match, Watch AI Play, and saved-match resume.
-- `#/setup`: board preview, 2–6 armies, controllers, AI difficulty, promotion, and multiplayer rules.
-- `#/play`: board, ranked armies, move history, keyboard moves, and match controls.
-- `#/guide`: rules, geometry, estimates, and saving behavior.
+## Choose your table
 
-The old `/omnichess_modern.html` URL redirects to `/`. The original prototype is preserved in `legacy/` and is not included in production assets.
+Only styles available for your chosen player count appear in setup.
 
-## Rules and controls
+| Board | Players | Cells | What changes |
+| --- | --- | --- | --- |
+| Classic square | 2 | 64 | Standard chess, selected through the original Radial option. |
+| Radial | 3–6 | 96–192 | Sector seams and branching central diagonals. |
+| Three arms | 3 | 144 | Rectangular home arms and a triangular central field. |
+| Cross | 4 | 192 | Four square-cell arms around an 8×8 center; straight grid movement. |
+| Five-arm | 5 | 240 | Five home arms surrounding a pentagonal field. |
+| Six-arm | 6 | 288 | Six home arms surrounding a hexagonal field. |
+| Donut | 2 | 64 | Circular board; files a/h connect at the same rank. |
+| Möbius | 2 | 112 | Unfolded 8×14 strip, two pawn fronts per army, and a twisted join. |
 
-Two-player mode uses standard placement, legal checks, castling, en passant, and all four promotions. Kings cannot be captured. Stalemate, threefold repetition, 100 half-moves without pawn movement/capture, and common insufficient-material positions automatically draw. Checkmate takes priority over the move-count rule. This is a simplified casual draw policy, not full tournament adjudication; arbitrary dead positions are not exhaustively detected.
+Pieces keep one size per board, including during animation. Fitted cells keep pieces and ownership rings inside their tiles. Dense boards still become small on narrow screens.
 
-Three to six players retain radial sector movement and the central diagonal branches. Conquest converts defeated armies; otherwise they freeze or disappear. First-checkmate also ends immediately on direct king capture. Stalemate eliminates an army in multiplayer. Converted pawns follow their new owner's sector-based direction.
+![Six-arm match with ranked armies and move history](docs/screenshots/six-arm-desktop.jpg)
 
-Arrow keys move the board cursor, Enter or Space selects/moves, and Escape clears selection. Legal moves use dots; captures use dashed rings. Human-mode Undo removes the most recent human move and its following AI replies. Spectator Undo removes one ply and remains paused. Only the most recent 35 snapshots are retained, so a human decision older than that cannot be undone.
+## Play, watch, and experiment
 
-Settings and Guide suspend AI without changing its previous pause state. Leaving for Home or Setup pauses the match. Returning from Home/Setup or restoring a save keeps AI paused until Resume AI is pressed; human moves remain available. Returning directly from Guide restores the prior pause state. Step performs one AI move and stays paused. Speed presets are delays between moves; AI computation adds time.
+- Mix human and AI seats, or make every army AI-controlled.
+- Enable multiplayer **conquest** to take control of defeated armies' remaining pieces.
+- Alternatively, freeze/remove defeated armies, or play **first checkmate wins**.
+- Follow ranked army cards with material, captures, and dynamic win estimates.
+- Watch pieces move, captures fade, and both pieces animate during castling. Reduced-motion preferences are respected.
+- Pause AI, step through one move, and choose Turbo, Normal, or Cinematic speed.
+- Use hints, coordinates, move history, and local Undo.
 
-Multiplayer victory/conquest changes apply live. Undo restores positions under currently selected rules and preserves controllers, difficulty, and speed. Starting a match or resetting after moves requires confirmation before replacing the saved match.
+Win estimates compare material, mobility, pawn progress, threats, and king safety. They are **uncalibrated heuristics**, not measured probabilities, and do not predict draws. AI is also heuristic: this is a playground rather than a strong chess engine or training service.
 
-## Win estimates
+### Controls
 
-Rankings use a deterministic heuristic comparing material, mobility, center occupation, pawn advancement, attacked pieces, and king safety. A softmax converts scores into relative shares; rounding preserves a displayed total of 100%. Ties follow original army order. Eliminated armies show 0%, the declared winner 100%, and drawn matches show Draw. These are uncalibrated position estimates, not measured probabilities, and do not predict draws.
+| Action | Control |
+| --- | --- |
+| Select or move | Click/tap a piece, then a legal destination. |
+| Navigate the board | Arrow keys. |
+| Select/move with the keyboard | Enter or Space. |
+| Clear selection | Escape. |
+| Human-mode Undo | Remove the latest retained human move and following AI replies. |
+| Spectator Undo | Remove one ply and remain paused. |
+| Step | Commit one AI move and remain paused. |
 
-## Saves
+Legal moves use dots; captures use dashed rings. Settings and Guide suspend AI. Leaving the arena or restoring a save pauses AI until explicitly resumed.
 
-The versioned `omnichess.match` local-storage slot contains settings, committed board state, rule metadata, up to 35 undo snapshots, and the recent move log. A pending promotion is not saved until chosen. Invalid or unsupported saves are left untouched; that session can play without writing over them. Storage failures do not interrupt play.
+## Rules worth knowing
 
-Saves belong to one browser and origin. They do not sync across devices or between Vercel preview/production URLs. No accounts, cloud saving, online multiplayer, or telemetry are included.
+**Classic chess** supports king safety, checkmate, stalemate, castling, en passant, and all four promotions. Kings cannot be captured. Repetition, 100 half-moves without a pawn move/capture, and common insufficient-material positions automatically draw. This is a simplified casual policy, not complete tournament adjudication.
 
-## Deploy to Vercel later
+**Multiplayer sector boards** use seam movement and branching diagonals. Pawns advance inward in their owner's sector, then outward through opposing sectors, promoting at an opposing back rank. Conquered pawns follow the new owner's direction. Two-player draw rules do not apply to multiplayer; stalemate eliminates an army. The three-arm center adapts this graph rather than reproducing a regular diamond lattice.
 
-The included `vercel.json` specifies the Vite preset, `npm run build`, and output directory `dist`. The package selects Node.js 24, which [Vercel supports for builds](https://vercel.com/changelog/node-js-24-lts-is-now-generally-available-for-builds-and-functions). No environment variables, backend, or database are needed. Hash routes require no rewrite rules.
+**Cross** uses straight square-grid rook/bishop movement and ordinary knight jumps. Pawns keep their army's forward direction and promote at the opposite outer back rank.
 
-1. Push this repository to a Git provider when ready.
-2. Import it into Vercel with the repository root as the project root.
-3. Create a preview deployment and check navigation, all board variants, AI controls, and reload recovery.
-4. Promote the verified build to production. Keep the previous deployment available for rollback.
+**Donut** is an annular experiment with cylindrical movement: a/h files join, but ranks 1/8 remain boundaries. Gold begins inside, Crimson outside. It is not a torus joining both pairs of edges.
 
-Nothing is published by the implementation or build scripts. Production includes only the generated site and local assets, not the tests or original prototype.
+**Möbius** follows [Alberto Monteiro's reference](https://www.chessvariants.com/shape.dir/x_moeb.html) and its [cylindrical setup](https://www.chessvariants.com/shape.dir/x_cylind.html). Each army has 24 pieces. Gold occupies back rank 1 and pawn ranks 2/14; Crimson occupies back rank 8 and pawn ranks 7/9. Rank 14 joins 1 normally. Between 11/12, files reverse: a11 joins h12. Bishops can change square color. Gold promotes on 8, Crimson on 1. The strip is displayed unfolded so every cell stays visible.
 
-## Project structure
+Donut and Möbius retain king safety, home-rank castling, en passant, repetition, and the move-count draw. Their automatic material draw is limited to king versus king. Earlier 8×8 Möbius saves retain their original experimental rules; new matches use the reference version.
 
-`src/engine/` contains DOM-independent topology, rules, game state, AI, estimation, and persistence. `src/ui/` contains canvas drawing and screen/control orchestration. `tests/` covers engine fixtures, perft, timers, persistence, rankings, and DOM interactions.
+The in-game **Guide** explains movement, joins, conquest, and draw policy.
 
-Fonts are distributed under the SIL Open Font License; copies are included with the public assets. Chess icons are local SVG paths. There are no runtime CDN requests.
+## Local saving
+
+Committed positions and settings autosave to one versioned browser-local slot, including recent moves and up to **35 Undo snapshots**. Pending promotions restore the preceding committed position. Invalid/unsupported saves are left untouched; storage errors show a nonblocking message while play continues.
+
+Saves belong to one browser, device, and origin. They do not sync between devices or Vercel preview/production URLs. Export/import, cloud saving, replay, and online multiplayer are not implemented.
+
+## Development
+
+| Command | Purpose |
+| --- | --- |
+| `npm run dev` | Start Vite's development server. |
+| `npm test` | Run engine, rules, geometry, saves, timers, animation, and interface tests. |
+| `npm run build` | Produce the static site in `dist/`. |
+| `npm run preview` | Serve the production build locally. |
+
+Classic starting-position perft is checked against **20, 400, and 8,902** through depth three. Variant coverage includes joins, conquest, elimination, wrapping, promotion, and Möbius pawn fronts. See [release verification](docs/verification.md) for checks and screenshots.
+
+```text
+src/engine/   DOM-independent topology, rules, state, AI, estimates, saves
+src/ui/       Canvas rendering, animation, screens, and controls
+tests/        Engine and interface regression coverage
+docs/         Verification, screenshots, and README artwork
+scripts/      Offline geometry fitting and hero SVG generation
+legacy/       Original single-file prototype
+```
+
+Grid templates are checked in; normal builds do not run the optimizer. Regenerate them with `node scripts/fit-board-grids.js`. The hero's editable source is [docs/hero.svg](docs/hero.svg), generated by `node scripts/create-hero.js` from the game engine.
+
+Serve over HTTP; opening `index.html` as a local file is unsupported. Hash routes are `#/`, `#/setup`, `#/play`, and `#/guide`. The old `/omnichess_modern.html` address redirects to the introduction. The original prototype in `legacy/` is excluded from production.
+
+## Deploy to Vercel
+
+1. Import this repository into Vercel.
+2. Use the repository root and **Vite** framework preset.
+3. Build with **`npm run build`**, output **`dist`**, and **Node.js 24**.
+4. Check a preview: navigation, all player counts/styles, spectator controls, and refresh recovery.
+5. Promote the verified preview; retain the previous deployment for rollback.
+
+`vercel.json` supplies the Vite build configuration. Hash routes need no application rewrites. No database, server functions, secrets, or environment variables are required. Pushing to GitHub does not itself deploy unless a hosting integration is already connected.
+
+## Credits
+
+- Möbius rules: [Alberto Monteiro, The Chess Variant Pages](https://www.chessvariants.com/shape.dir/x_moeb.html).
+- Locally bundled **Source Serif 4** and **Source Sans 3**; see their [Serif license](public/source-serif-4-license.txt) and [Sans license](public/source-sans-3-license.txt).
+- Chess silhouettes are local SVG paths. The hero uses OmniChess's own geometry and pieces.
+
+OmniChess combines familiar chess with experimental board and multiplayer rules. It does not claim tournament-standard adjudication for every variant.

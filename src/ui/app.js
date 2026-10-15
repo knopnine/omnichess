@@ -2,7 +2,7 @@ import { Game } from '../engine/game.js';
 import { MASTER_PLAYERS } from '../engine/players.js';
 import { Persistence, restoreGame, serializeGame } from '../engine/persistence.js';
 import { BoardView, pieceIcon, PIECE_NAMES } from './board.js';
-import { BoardTopology } from '../engine/topology.js';
+import { BoardTopology, BOARD_STYLES } from '../engine/topology.js';
 
 const escapeHTML = value => String(value).replace(/[&<>"']/g, ch => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[ch]));
 export const rankArmies = game => {
@@ -15,6 +15,7 @@ export class App {
         this.doc = doc; this.$ = id => doc.getElementById(id);
         this.page = null; this.hasMatch = false; this.resultSeen = null; this.lastTurn = '';
         this.pendingConfirm = null; this.dialogFocus = new Map(); this.setupSeats = [false,true,true,true,true,true];
+        this.boardStyleOptions = Array.from(this.$('setup-board-style').options, option => ({value:option.value,label:option.textContent}));
         try { storage ??= window.localStorage; } catch { storage = { getItem(){ throw new Error('Unavailable'); }, setItem(){ throw new Error('Unavailable'); } }; }
         this.persistence = new Persistence(storage, message => { this.$('storage-warning').textContent = message; this.$('storage-warning').hidden = false; });
         this.saved = this.persistence.read();
@@ -32,6 +33,7 @@ export class App {
         this.guideView = boardFactory(this.$('guide-board'), this.guideGame);
         this.boardView = boardFactory(this.$('game-board'), this.game, { interactive:true, onDescribe:text => { this.$('board-description').textContent = text; } });
         this.game.onChange = () => { this.render(); this.save(); };
+        this.game.onMove = move => this.boardView.animateMove?.(move);
         this.game.onEvent = message => { this.$('announcer').textContent = message; this.$('arena-message').textContent = message; };
         this.bind(); this.showGuideExample('rook'); this.showSetup(); this.route(); this.updateResume();
     }
@@ -54,7 +56,7 @@ export class App {
         });
         this.$('setup-form').addEventListener('change', e => {
             if (e.target.dataset.setupSeat) this.setupSeats[Number(e.target.dataset.setupSeat)] = e.target.value === 'ai';
-            if (e.target.name === 'players') this.showSetup();
+            if (e.target.name === 'players' || e.target.id === 'setup-board-style') this.showSetup();
         });
         this.$('setup-form').addEventListener('submit', e => { e.preventDefault(); this.confirmReplacement(() => this.startSetup()); });
         this.$('speed').addEventListener('change', e => this.game.setSpeed(e.target.value));
@@ -121,11 +123,22 @@ export class App {
     }
     showSetup() {
         const n = Number(this.doc.querySelector('input[name=players]:checked').value);
+        const style = this.$('setup-board-style');
+        const selectedStyle = style.value;
+        const availableStyles = this.boardStyleOptions.filter(option => BOARD_STYLES[option.value].players===null || BOARD_STYLES[option.value].players===n);
+        style.replaceChildren(...availableStyles.map(item => {
+            const option=this.doc.createElement('option');option.value=item.value;option.textContent=item.label;return option;
+        }));
+        style.value = availableStyles.some(option=>option.value===selectedStyle) ? selectedStyle : 'radial';
+        this.$('board-style-note').textContent=style.value==='cross'?'Four 8 × 4 arms surround an 8 × 8 center. Pieces follow straight grid lines; pawns advance toward the opposite back rank.':style.value.endsWith('-arm')?`${n} square-cell arms share a playable ${n===3?'triangular':n===5?'pentagonal':'hexagonal'} center. Pieces keep one size and follow sector seams.`:'Choose an arm board matching your player count, or keep the radial board.';
+        if(style.value==='donut')this.$('board-style-note').textContent='Experimental circular board: files a and h join at the same rank. Inner and outer edges do not join. Gold starts inside; Crimson outside.';
+        if(style.value==='mobius')this.$('board-style-note').textContent='Monteiro reference: 8 × 14 unfolded strip, 24 pieces per army. Rank 14 joins 1; the 11/12 twist reverses files (a11 ↔ h12). Each army has two pawn fronts.';
+        this.previewGame.boardStyle = style.value;
         this.previewGame.setPlayerCount(n); this.previewGame.showCoords = false;
         this.$('setup-seats').innerHTML = MASTER_PLAYERS.slice(0,n).map((p,i) => `<div class="seat-row"><span class="army-dot" style="background:${p.primary}"></span><label for="seat-${i}">${p.name}</label><select id="seat-${i}" data-setup-seat="${i}"><option value="human"${this.setupSeats[i] ? '' : ' selected'}>Human</option><option value="ai"${this.setupSeats[i] ? ' selected' : ''}>AI</option></select></div>`).join('');
         this.$('setup-victory').disabled = this.$('setup-conquest').disabled = n === 2;
         this.$('classic-note').hidden = n !== 2;
-        this.$('setup-caption').textContent = `${n} armies · ${n*32} squares · ${n*16} starting pieces`;
+        this.$('setup-caption').textContent = `${n} armies · ${this.previewGame.topology.cells.length} squares · ${this.previewGame.board.size} starting pieces`;
         this.setupView.draw();
     }
     showGuideExample(example) {
@@ -144,6 +157,7 @@ export class App {
         const g = this.game;
         g.cancelAI(); g.inArena = false;
         g.numPlayers = Number(this.doc.querySelector('input[name=players]:checked').value);
+        g.boardStyle = this.$('setup-board-style').value;
         g.seatsIsAI = [...this.setupSeats]; g.difficulty = this.$('setup-difficulty').value;
         g.victoryMode = this.$('setup-victory').value; g.convertOnKingKill = this.$('setup-conquest').checked;
         g.autoQueen = this.$('setup-promotion').value;
@@ -205,7 +219,7 @@ export class App {
         const check = !g.gameOver && g.isKingInCheck(g.turn);
         const turnText = g.gameOver ? (g.result.type === 'draw' ? 'Draw' : `${MASTER_PLAYERS[g.winnerId].name} wins`) : `${MASTER_PLAYERS[g.turn].name} to move${check ? ' · Check' : ''}${g.seatsIsAI[g.turn] ? (g.isPaused || g.suspensions.size ? ' · AI paused' : ' · AI') : ' · Human'}`;
         this.$('turn-text').textContent = turnText;
-        this.$('match-details').textContent = `${g.numPlayers} players · ${g.numPlayers*32} squares · ${g.numPlayers === 2 ? 'Classic chess' : g.isConquestActive() ? 'Conquest on' : 'Conquest off'}`;
+        this.$('match-details').textContent = `${g.numPlayers} players · ${g.topology.cells.length} squares · ${g.boardStyle !== 'radial' ? BOARD_STYLES[g.boardStyle].label+' · ' : ''}${g.numPlayers === 2 ? g.boardStyle!=='radial'?'Experimental rules':'Classic chess' : g.isConquestActive() ? 'Conquest on' : 'Conquest off'}`;
         if (this.page === 'play' && turnText !== this.lastTurn) { this.$('turn-announcer').textContent = turnText; this.lastTurn = turnText; }
         this.renderArmies(); this.renderMoves(); this.boardView.draw();
         this.doc.querySelector('[data-action=undo]').disabled = !g.canUndo();
@@ -213,13 +227,13 @@ export class App {
         this.doc.querySelector('[data-action=hint]').disabled = g.gameOver || g.seatsIsAI[g.turn];
         this.doc.querySelector('[data-action=coords]').setAttribute('aria-pressed',String(g.showCoords));
         const pause = this.doc.querySelector('[data-action=pause]'); pause.textContent = g.isPaused ? 'Resume AI' : 'Pause AI'; pause.disabled = g.gameOver;
-        this.doc.querySelector('[data-action=step]').disabled = g.gameOver || !g.seatsIsAI[g.turn];
+        this.doc.querySelector('[data-action=step]').disabled = g.gameOver || !g.seatsIsAI[g.turn] || !!this.boardView.isAnimating;
         this.doc.querySelector('.simulation-controls').hidden = !g.seatsIsAI.slice(0,g.numPlayers).some(Boolean);
         this.$('speed').value = String(g.aiDelay);
         this.doc.querySelector('[data-action=spectate]').textContent = g.spectatorMode ? 'Return Gold to human' : 'Switch all seats to AI';
         if (this.page === 'play' && g.pendingPromotion) this.showDialog('promotion-dialog');
         if (!g.gameOver) this.resultSeen = null;
-        else if (this.page === 'play') {
+        else if (this.page === 'play' && !this.boardView.isAnimating) {
             const resultKey = JSON.stringify(g.result) + ':' + g.plyCount;
             if (resultKey !== this.resultSeen) {
                 this.resultSeen = resultKey; this.$('results-title').textContent = g.result.type === 'draw' ? 'A drawn match.' : `${MASTER_PLAYERS[g.winnerId].name} takes the table.`;
